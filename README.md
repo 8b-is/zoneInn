@@ -1,5 +1,7 @@
 # zoneInn — quantTernRadio
 
+Landing: [zoneinn.vaked.dev](https://zoneinn.vaked.dev) · palette `ultra-omnipotent-light` (design.vaked.dev Palette F).
+
 **The vaked dial, in a terminal.** Pure Rust CLI radio: tuneIn-style URLs,
 the constellation's own radio surfaces, a ternary `{−1, 0, +1}` equalizer,
 safe bluetooth, and the SUNO OSS voice between tracks.
