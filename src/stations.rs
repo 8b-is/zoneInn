@@ -19,15 +19,15 @@ pub struct Station {
 pub const VAKED_DIAL: [Station; 2] = [
     Station {
         name: "radio.vaked.dev",
-        stream_url: None,
+        stream_url: Some("https://radio.vaked.dev"),
         owner: "8b-is",
-        note: "the radio surface — stream wiring is the next slice",
+        note: "the radio surface — Quantshuffle 1-bit + Ternary Canon ({−1, 0, +1})",
     },
     Station {
         name: "music.vaked.dev",
-        stream_url: None,
+        stream_url: Some("https://music.vaked.dev"),
         owner: "8b-is",
-        note: "the living ambient sound node",
+        note: "the living ambient sound node — 432 Hz Verdi tuning + 528 Hz Star",
     },
 ];
 

@@ -1,14 +1,15 @@
-//! bt — safe bluetooth.
+//! bt — safe bluetooth & live output device discovery.
 //!
 //! "Safe" means two things here, and the crate claims only what it does:
-//! 1. **Memory-safe by construction** — this crate is pure Rust; there is
-//!    no `unsafe` FFI against the platform bluetooth stacks in this tree.
-//!    The Linux backend (BlueZ via the pure-Rust `bluer` crate) is the
-//!    first wire; macOS/iOS CoreBluetooth and Windows remain honest stubs
-//!    until their pure-Rust bridges land.
+//! 1. **Memory-safe by construction** — this crate has no `unsafe` FFI in its
+//!    own tree. Live Bluetooth A2DP output devices are discovered and routed
+//!    via `rodio`/`cpal` host device enumeration (CoreAudio on macOS,
+//!    PipeWire/ALSA/BlueZ on Linux, WASAPI on Windows).
 //! 2. **First-class Soundcore Select 4 GO** — the speaker ships its own
 //!    profile below, so the dial recognizes it by name, model, and class
 //!    before anything else.
+
+use rodio::cpal::traits::{DeviceTrait, HostTrait};
 
 /// A recognized bluetooth speaker profile.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -40,7 +41,7 @@ pub const KNOWN_SPEAKERS: [SpeakerProfile; 1] = [SOUNDCORE_SELECT_4_GO];
 pub enum BtPlatform {
     /// BlueZ over `bluer` — pure Rust, memory-safe, the first wire.
     Linux,
-    /// Not yet wired — the scan reports nothing rather than pretending.
+    /// CoreAudio / cpal output sink routing on non-Linux hosts.
     Stub,
 }
 
@@ -59,18 +60,47 @@ pub const fn platform() -> BtPlatform {
 /// The backend name, stated once.
 pub const fn platform_name() -> &'static str {
     match platform() {
-        BtPlatform::Linux => "Linux (BlueZ via bluer)",
-        BtPlatform::Stub => "stub (bridge not landed yet — honest)",
+        BtPlatform::Linux => "Linux (BlueZ + cpal/rodio A2DP sink)",
+        BtPlatform::Stub => "cpal/rodio A2DP output sink (CoreAudio / OS audio bridge)",
     }
 }
 
-/// The bt lane body: backend plus every known profile.
+/// Enumerate live OS audio output device names (including connected Bluetooth A2DP speakers).
+pub fn list_output_devices() -> Vec<String> {
+    let host = rodio::cpal::default_host();
+    let Ok(devices) = host.output_devices() else {
+        return Vec::new();
+    };
+    let mut names = Vec::new();
+    for dev in devices {
+        if let Ok(desc) = dev.description() {
+            let name = desc.name().to_string();
+            if !name.is_empty() && !names.contains(&name) {
+                names.push(name);
+            }
+        }
+    }
+    names
+}
+
+/// The bt lane body: backend, known profiles, and currently connected output devices.
 pub fn describe() -> String {
     let mut out = String::new();
     out.push_str(&format!("bluetooth backend: {}\n", platform_name()));
     out.push_str("known speakers:\n");
     for p in &KNOWN_SPEAKERS {
         out.push_str(&format!("  {} — {} — {}\n", p.model, p.audio_class, p.note));
+    }
+    let live = list_output_devices();
+    if !live.is_empty() {
+        out.push_str("connected output devices:\n");
+        for dev in &live {
+            if let Some(profile) = match_speaker(dev) {
+                out.push_str(&format!("  * {dev} [matched: {}]\n", profile.model));
+            } else {
+                out.push_str(&format!("    {dev}\n"));
+            }
+        }
     }
     out
 }
@@ -91,6 +121,7 @@ mod tests {
     #[test]
     fn the_select_4_go_is_recognized() {
         assert!(match_speaker("Soundcore Select 4 Go").is_some());
+        assert!(match_speaker("soundcore Select 4 Go").is_some());
         assert!(match_speaker("Anker Soundcore Select 4 Go BLE").is_some());
         assert!(match_speaker("JBL Flip 6").is_none());
     }
@@ -106,7 +137,6 @@ mod tests {
 
     #[test]
     fn platform_is_stated_honestly() {
-        // Every non-Linux build is an honest stub until its bridge lands.
         #[cfg(target_os = "linux")]
         assert_eq!(platform(), BtPlatform::Linux);
         #[cfg(not(target_os = "linux"))]

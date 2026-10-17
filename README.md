@@ -96,8 +96,8 @@ the radio runs on the ternary equalizer alone.
 | web radio & bluetooth studio | ✅ live (`zoneinn.vaked.dev` + `cargo run -- web`) |
 | ultrawhale NAND oscillator | ✅ live (`cargo run -- nand` + HF `PeetPedro` refeed) |
 | cli e2e | ✅ live (`tests/cli_e2e.rs`, real binary) |
-| stream playback | ✅ live in Web Studio (`zoneinn.vaked.dev`); CLI rodio wire next |
-| bluetooth backend | ✅ live in Web Studio (Web Bluetooth + `setSinkId`); profile logic ✅ |
+| stream playback | ✅ live (`rodio 0.23` `MixerDeviceSink` + `Player` + `VakedStationSource` / Symphonia decoder + Web Studio) |
+| bluetooth backend | ✅ live (`cpal` Bluetooth A2DP sink routing via `--bt "Soundcore Select 4"` + Web Bluetooth / `setSinkId`) |
 | SUNO OSS voice bridge | ✅ Web Speech voice cues live in Web Studio; CLI `bark-selfhost` wire next |
 | agy visuals | ✅ shell-out lane live |
 

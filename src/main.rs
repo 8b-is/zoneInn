@@ -31,9 +31,12 @@ enum Cmd {
     Play {
         /// Station name or http(s) URL.
         target: String,
-        /// Bluetooth speaker to send to (name substring).
+        /// Bluetooth speaker to send to (name substring, e.g. "Soundcore Select 4").
         #[arg(long)]
         bt: Option<String>,
+        /// Stop after N seconds (0 = play continuously until Ctrl-C).
+        #[arg(long, default_value_t = 0)]
+        seconds: u64,
     },
     /// Speak a line through the SUNO OSS voice lane.
     Voice {
@@ -101,31 +104,17 @@ fn main() {
                 std::process::exit(1);
             }
         }
-        Cmd::Play { target, bt } => {
-            let url = if target.starts_with("http") {
-                Some(target.clone())
-            } else {
-                stations::find(&target).and_then(|s| s.stream_url.map(str::to_string))
-            };
-            match url {
-                Some(_u) => {
-                    println!("tuned: {target}");
-                    println!("{}", audio::URL_STREAM_STATUS);
-                }
-                None => {
-                    println!("station found on the dial, stream not wired yet: {target}");
-                    println!("{}", audio::URL_STREAM_STATUS);
-                }
-            }
-            if let Some(art) = agy::track_art("unknown", &target) {
-                println!();
+        Cmd::Play {
+            target,
+            bt,
+            seconds,
+        } => {
+            if let Some(art) = agy::track_art("8b-is", &target) {
                 println!("{art}");
             }
-            if let Some(speaker) = bt {
-                match bt::match_speaker(&speaker) {
-                    Some(p) => println!("speaker: {} — {}", p.model, p.note),
-                    None => println!("speaker not recognized: {speaker}"),
-                }
+            if let Err(e) = audio::play_target(&target, bt.as_deref(), seconds) {
+                eprintln!("playback failed: {e}");
+                std::process::exit(1);
             }
         }
         Cmd::Voice { text } => {

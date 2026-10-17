@@ -149,7 +149,11 @@ pub fn run_interactive() -> io::Result<()> {
         Some(target) if target == "play <url>" => {
             println!("menu: type `zoneinn play <url>` to tune any URL (tuneIn included)");
         }
-        Some(target) => println!("tuned: {target} — stream not wired yet"),
+        Some(target) => {
+            if let Err(e) = crate::audio::play_target(&target, None, 0) {
+                eprintln!("playback failed: {e}");
+            }
+        }
         None => println!("the dial keeps spinning · 0 + 1"),
     }
     Ok(())
