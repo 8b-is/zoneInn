@@ -1,10 +1,14 @@
 //! quantTernRadio — the zoneInn radio CLI.
 
 use clap::{Parser, Subcommand};
-use zoneinn::{agy, audio, bt, stations, visuals, voice};
+use zoneinn::{agy, ascii, audio, bt, menu, nand, stations, visuals, voice, web};
 
 #[derive(Parser)]
-#[command(name = "quantternradio", version, about = "the zoneInn radio — {−1, 0, +1} on air")]
+#[command(
+    name = "quantternradio",
+    version,
+    about = "the zoneInn radio — {−1, 0, +1} on air"
+)]
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,
@@ -35,6 +39,42 @@ enum Cmd {
     Voice {
         /// The line to speak.
         text: Vec<String>,
+    },
+    /// The interactive dial menu — arrow keys, enter to tune, q to quit.
+    Menu {
+        /// Render one text snapshot and exit (no TTY needed).
+        #[arg(long)]
+        snapshot: bool,
+    },
+    /// One-shot ASCII render of the ternary equalizer.
+    #[command(name = "quantTernAscii")]
+    QuantTernAscii {
+        /// Station name for the header (default: radio.vaked.dev).
+        #[arg(long, default_value = "radio.vaked.dev")]
+        station: String,
+        /// Frame time in seconds (default: 0.0).
+        #[arg(long, default_value_t = 0.0)]
+        t: f64,
+    },
+    /// The safe bluetooth lane — backend and known speakers.
+    Bt,
+    /// Serve the interactive Web Radio & Bluetooth Studio (zoneinn.vaked.dev).
+    Web {
+        /// Local bind address (default: 127.0.0.1:8088).
+        #[arg(long, default_value = web::DEFAULT_BIND)]
+        bind: String,
+        /// Print the JSON status payload and exit without binding a socket.
+        #[arg(long)]
+        dump_status: bool,
+    },
+    /// Step the Ultrawhale ternary NAND ring oscillator or emit HF refeed JSONL.
+    Nand {
+        /// Number of oscillator steps to run (default: 8).
+        #[arg(long, default_value_t = 8)]
+        steps: usize,
+        /// Emit JSONL refeed rows for PeetPedro/ultrawhale-dogfood.
+        #[arg(long)]
+        jsonl: bool,
     },
 }
 
@@ -94,6 +134,39 @@ fn main() {
                 Ok(true) => println!("spoken"),
                 Ok(false) => println!("unspoken (no bark endpoint): {}", cue.text),
                 Err(e) => println!("{e}"),
+            }
+        }
+        Cmd::Menu { snapshot } => {
+            if snapshot {
+                print!("{}", menu::snapshot());
+            } else if let Err(e) = menu::run_interactive() {
+                eprintln!("menu failed: {e}");
+                std::process::exit(1);
+            }
+        }
+        Cmd::QuantTernAscii { station, t } => {
+            let frame = visuals::demo_frame(t);
+            print!("{}", ascii::render(&frame, &station, t));
+        }
+        Cmd::Bt => {
+            print!("{}", bt::describe());
+        }
+        Cmd::Web { bind, dump_status } => {
+            if dump_status {
+                println!("{}", web::status_json());
+            } else if let Err(e) = web::serve(&bind, None) {
+                eprintln!("web studio failed on {bind}: {e}");
+                std::process::exit(1);
+            }
+        }
+        Cmd::Nand { steps, jsonl } => {
+            if jsonl {
+                print!(
+                    "{}",
+                    nand::generate_refeed_jsonl(steps, "2026-10-18T00:00:00Z")
+                );
+            } else {
+                print!("{}", nand::describe_run(steps));
             }
         }
     }

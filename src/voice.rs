@@ -25,7 +25,9 @@ impl VoiceCue {
 
 /// The bark-selfhost endpoint, from the environment.
 pub fn bark_endpoint() -> Option<String> {
-    std::env::var("BARK_SELFHOST_URL").ok().filter(|v| !v.is_empty())
+    std::env::var("BARK_SELFHOST_URL")
+        .ok()
+        .filter(|v| !v.is_empty())
 }
 
 /// Speak a cue. With an endpoint configured this would POST the text to
@@ -51,7 +53,10 @@ pub enum VoiceError {
 impl std::fmt::Display for VoiceError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            VoiceError::NotWired(e) => write!(f, "bark endpoint configured ({e}) but the HTTP bridge is the next slice"),
+            VoiceError::NotWired(e) => write!(
+                f,
+                "bark endpoint configured ({e}) but the HTTP bridge is the next slice"
+            ),
         }
     }
 }
@@ -72,6 +77,9 @@ mod tests {
         // The environment in tests has no BARK_SELFHOST_URL by default;
         // if one leaks in, this still only asserts the honest contract.
         let spoken = speak(&VoiceCue::new("test")).unwrap_or(false);
-        assert!(!spoken, "no endpoint configured — the cue must stay unspoken");
+        assert!(
+            !spoken,
+            "no endpoint configured — the cue must stay unspoken"
+        );
     }
 }

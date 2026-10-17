@@ -16,10 +16,10 @@ use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 use ratatui::{Frame, Terminal};
-use rustfft::num_complex::Complex;
 use rustfft::FftPlanner;
+use rustfft::num_complex::Complex;
 
-use crate::tern::{TernFrame, DEFAULT_THRESHOLD, TERN_BANDS};
+use crate::tern::{DEFAULT_THRESHOLD, TERN_BANDS, TernFrame};
 
 const FFT_SIZE: usize = 1024;
 const TICK_HZ: f64 = 30.0;
@@ -54,15 +54,26 @@ fn band_bins(spectrum: &[f32]) -> [f32; TERN_BANDS] {
     out
 }
 
+/// One synthetic demo frame at time `t` — shared by the TUI and the
+/// one-shot ASCII lane, so both read the same signal.
+pub fn demo_frame(t: f64) -> TernFrame {
+    let mut planner = FftPlanner::<f32>::new();
+    let fft = planner.plan_fft_forward(FFT_SIZE);
+    let mut buf = synth_window(t);
+    fft.process(&mut buf);
+    let spectrum: Vec<f32> = buf.iter().map(|c| c.norm()).collect();
+    TernFrame::from_bins(&band_bins(&spectrum), DEFAULT_THRESHOLD)
+}
+
 fn draw(frame: &mut Frame, band: &TernFrame, station: &str, t: f64) {
     let mut lines: Vec<Line> = Vec::new();
 
-    lines.push(Line::from(vec![
-        Span::styled(
-            "quantTernRadio · zoneInn · {−1, 0, +1}",
-            Style::default().fg(Color::Cyan).add_modifier(ratatui::style::Modifier::BOLD),
-        ),
-    ]));
+    lines.push(Line::from(vec![Span::styled(
+        "quantTernRadio · zoneInn · {−1, 0, +1}",
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(ratatui::style::Modifier::BOLD),
+    )]));
     lines.push(Line::from(vec![Span::styled(
         format!("station: {station} · demo signal (offline)"),
         Style::default().fg(Color::Gray),
@@ -100,7 +111,16 @@ fn draw(frame: &mut Frame, band: &TernFrame, station: &str, t: f64) {
         Span::styled(legend, Style::default().fg(Color::Cyan)),
     ]));
     lines.push(Line::from(vec![Span::styled(
-        format!("dominant {}", if band.dominant == 1 { "+1" } else if band.dominant == -1 { "−1" } else { "·0" }),
+        format!(
+            "dominant {}",
+            if band.dominant == 1 {
+                "+1"
+            } else if band.dominant == -1 {
+                "−1"
+            } else {
+                "·0"
+            }
+        ),
         Style::default().fg(Color::Yellow),
     )]));
     lines.push(Line::from(vec![Span::styled(
@@ -128,9 +148,6 @@ pub fn run_demo(station: &str, seconds: u64) -> io::Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let mut planner = FftPlanner::<f32>::new();
-    let fft = planner.plan_fft_forward(FFT_SIZE);
-
     let start = Instant::now();
     let mut last_tick = start;
 
@@ -145,12 +162,7 @@ pub fn run_demo(station: &str, seconds: u64) -> io::Result<()> {
         if now.duration_since(last_tick).as_secs_f64() >= 1.0 / TICK_HZ {
             last_tick = now;
             let t = now.duration_since(start).as_secs_f64();
-
-            let mut buf = synth_window(t);
-            fft.process(&mut buf);
-            let spectrum: Vec<f32> = buf.iter().map(|c| c.norm()).collect();
-            let bands = band_bins(&spectrum);
-            let frame = TernFrame::from_bins(&bands, DEFAULT_THRESHOLD);
+            let frame = demo_frame(t);
 
             terminal.draw(|f| draw(f, &frame, station, t))?;
         }
@@ -160,6 +172,9 @@ pub fn run_demo(station: &str, seconds: u64) -> io::Result<()> {
     }
 
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(), ratatui::crossterm::terminal::LeaveAlternateScreen)?;
+    execute!(
+        terminal.backend_mut(),
+        ratatui::crossterm::terminal::LeaveAlternateScreen
+    )?;
     Ok(())
 }

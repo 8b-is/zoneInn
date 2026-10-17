@@ -109,7 +109,10 @@ mod tests {
 
     #[test]
     fn dominant_state_is_counted() {
-        let frame = TernFrame::from_bins(&[0.9, 0.9, 0.9, -0.9, -0.9, 0.0, 0.0, 0.0], DEFAULT_THRESHOLD);
+        let frame = TernFrame::from_bins(
+            &[0.9, 0.9, 0.9, -0.9, -0.9, 0.0, 0.0, 0.0],
+            DEFAULT_THRESHOLD,
+        );
         assert_eq!(frame.dominant, 1);
         assert_eq!(frame.glyphs(), "+++−−···");
     }

@@ -6,9 +6,13 @@
 //! Thanks Yves & Dra.
 
 pub mod agy;
+pub mod ascii;
 pub mod audio;
 pub mod bt;
+pub mod menu;
+pub mod nand;
 pub mod stations;
 pub mod tern;
 pub mod visuals;
 pub mod voice;
+pub mod web;

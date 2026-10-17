@@ -56,11 +56,32 @@ pub const fn platform() -> BtPlatform {
     }
 }
 
+/// The backend name, stated once.
+pub const fn platform_name() -> &'static str {
+    match platform() {
+        BtPlatform::Linux => "Linux (BlueZ via bluer)",
+        BtPlatform::Stub => "stub (bridge not landed yet — honest)",
+    }
+}
+
+/// The bt lane body: backend plus every known profile.
+pub fn describe() -> String {
+    let mut out = String::new();
+    out.push_str(&format!("bluetooth backend: {}\n", platform_name()));
+    out.push_str("known speakers:\n");
+    for p in &KNOWN_SPEAKERS {
+        out.push_str(&format!("  {} — {} — {}\n", p.model, p.audio_class, p.note));
+    }
+    out
+}
+
 /// Match a discovered device name against the known profiles.
 pub fn match_speaker(device_name: &str) -> Option<&'static SpeakerProfile> {
-    KNOWN_SPEAKERS
-        .iter()
-        .find(|p| device_name.to_ascii_lowercase().contains(&p.name_match.to_ascii_lowercase()))
+    KNOWN_SPEAKERS.iter().find(|p| {
+        device_name
+            .to_ascii_lowercase()
+            .contains(&p.name_match.to_ascii_lowercase())
+    })
 }
 
 #[cfg(test)]
