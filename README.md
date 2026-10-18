@@ -54,15 +54,37 @@ radio stations in the browser (`radio.vaked.dev` 1-bit Quantshuffle + Beethoven/
 - **Audio Output Routing (`selectAudioOutput` / `setSinkId`)** to route live Web Audio directly to paired Bluetooth A2DP speakers.
 - **AVRCP MediaSession (`navigator.mediaSession`)** for physical speaker play/pause/prev/next buttons.
 
+## The 14 Favourite Musics Crate (`radio.vaked.dev` · `src/favourites.rs`)
+
+`radio.vaked.dev` ships with the **14 Favourite Musics Crate** — playable directly by slug (`cargo run -- play innerbloom --bt "Soundcore Select 4"`), by `--track <slug>`, or from the interactive Web Studio crate at [zoneinn.vaked.dev](https://zoneinn.vaked.dev). Every track resolves its local/CDN 320 kbps MP3 master (`music/favourites/tracks/<slug>.mp3`) with automatic fallback to `zoneInn`'s 432 Hz polyphonic harmonic synthesizer (`VakedStationSource`).
+
+| # | Slug | Title — Artist | Key · BPM | Engine |
+|---|---|---|---|---|
+| 01 | `innerbloom` | Innerbloom — RÜFÜS DU SOL | F♯m · 122 BPM | 320k MP3 (`9:38`) + 432 Hz Synth |
+| 02 | `mahakala` | Mahakala — 8b-is / Sovereign Dub | Dm · 118 BPM | 320k MP3 (`8:35`) + 432 Hz Synth |
+| 03 | `take-five` | Take Five — The Dave Brubeck Quartet | E♭m · 174 BPM | 320k MP3 (`5:26`) + 432 Hz Synth |
+| 04 | `so-what` | So What — Miles Davis | Dm · 136 BPM | 320k MP3 (`9:22`) + 432 Hz Synth |
+| 05 | `time` | Time — Pink Floyd | F♯m · 120 BPM | 320k MP3 (`6:53`) + 432 Hz Synth |
+| 06 | `clair-de-lune` | Clair de Lune — Claude Debussy | D♭ · 66 BPM | 320k MP3 (`5:09`) + 432 Hz Synth |
+| 07 | `gymnopedie-1` | Gymnopédie No. 1 — Erik Satie | D · 72 BPM | 320k MP3 (`3:28`) + 432 Hz Synth |
+| 08 | `golden-ratio-432` | Golden Ratio 432×φ — vaked.dev / 8b-is | A=432 · 108 BPM | 320k MP3 (`3:00`) + 432 Hz Synth |
+| 09 | `beethoven-5th` | Symphony No. 5 (Fate Motif) — Ludwig van Beethoven | Cm · 108 BPM | 320k MP3 (`3:00`) + 432 Hz Synth |
+| 10 | `ode-to-joy` | Ode to Joy (Symphony No. 9) — Ludwig van Beethoven | D · 120 BPM | 320k MP3 (`3:00`) + 432 Hz Synth |
+| 11 | `fur-elise` | Für Elise (Bagatelle No. 25) — Ludwig van Beethoven | Am · 116 BPM | 320k MP3 (`3:00`) + 432 Hz Synth |
+| 12 | `pachelbel-canon` | Canon in D — Johann Pachelbel | D · 88 BPM | 320k MP3 (`3:00`) + 432 Hz Synth |
+| 13 | `midnight-sovereign` | Midnight Sovereign (Ternary Nocturne) — radio.vaked.dev | Cm · 96 BPM | 320k MP3 (`3:00`) + 432 Hz Synth |
+| 14 | `ultrawhale-nand-groove` | Ultrawhale NAND Groove `{-1, 0, +1}` — PeetPedro / 8b-is | F · 128 BPM | 320k MP3 (`3:00`) + 432 Hz Synth |
+
 ## Safe bluetooth
 
 "Safe" means two things, claimed exactly:
 
-1. **Memory-safe by construction** — no `unsafe` FFI in this crate. The
-   Linux backend (BlueZ via the pure-Rust `bluer` crate) is the first
-   wire; macOS/Windows are honest stubs until their bridges land, while
-   `zoneinn web` / `zoneinn.vaked.dev` provides live Web Bluetooth +
-   `setSinkId` routing in the browser today.
+1. **Memory-safe by construction** — no `unsafe` FFI in this crate. On macOS
+   and Linux, `src/audio.rs` enumerates CoreAudio / ALSA / PulseAudio output
+   devices via `cpal` + `rodio 0.23` (`MixerDeviceSink`) to route directly to a
+   paired Bluetooth A2DP sink (`--bt "Soundcore Select 4"`), while `src/bt.rs`
+   drives BlueZ on Linux and `zoneinn web` / `zoneinn.vaked.dev` provides live
+   Web Bluetooth + `setSinkId` routing in the browser.
 2. **Soundcore Select 4 GO first-class** — the speaker ships its own
    profile (`src/bt.rs`), recognized by name before any other device.
 
@@ -71,7 +93,7 @@ radio stations in the browser (`radio.vaked.dev` 1-bit Quantshuffle + Beethoven/
 `cargo run -- nand` runs a 5-stage cross-coupled ternary NAND ring oscillator
 (`{−1, 0, +1}` + strong-3 Kleene `¬min(a, b)`), quantizes each step into an
 8-band `TernFrame` with a 64-bit FNV-1a golden hash, and emits JSONL refeed rows
-for [`PeetPedro/ultrawhale-dogfood`](https://huggingface.co/datasets/PeetPedro/ultrawhale-dogfood) (`--jsonl`).
+for [`PeetPedro/ultrawhale-dogfood`](https://huggingface.co/datasets/PeetPedro/ultrawhale-dogfood) and [`peetpedro/ultrawhale-oscillator`](https://huggingface.co/datasets/peetpedro/ultrawhale-oscillator) (`--jsonl`).
 
 ## The voice between tracks
 
@@ -93,6 +115,7 @@ the radio runs on the ternary equalizer alone.
 |---|---|
 | ternary equalizer demo | ✅ live, no device needed |
 | dial + station presets | ✅ live (radio.vaked.dev / music.vaked.dev) |
+| 14 favourite musics crate | ✅ live (`src/favourites.rs` — 14 tracks, 320 kbps MP3 + 432 Hz harmonic synth) |
 | dial menu | ✅ live (interactive + `--snapshot` text form) |
 | quantTernAscii one-shot | ✅ live, deterministic, golden pinned |
 | web radio & bluetooth studio | ✅ live (`zoneinn.vaked.dev` + `cargo run -- web`) |
