@@ -1017,7 +1017,10 @@ cargo run -- nand --steps 16 --jsonl</pre>
 
       if (profile) {
         hdrSpeaker.innerHTML = '<span class="badge-FirstClass">★ ' + profile.model + '</span>';
-        stBt.innerHTML = '<span class="badge-FirstClass">CONNECTED ★ FIRST-CLASS: ' + devName + ' (' + profile.audio_class + ')' + batteryInfo + '</span>';
+        const statusBadge = document.createElement('span');
+        statusBadge.className = 'badge-FirstClass';
+        statusBadge.textContent = 'CONNECTED ★ FIRST-CLASS: ' + devName + ' (' + profile.audio_class + ')' + batteryInfo;
+        stBt.replaceChildren(statusBadge);
       } else {
         hdrSpeaker.textContent = devName;
         stBt.textContent = 'connected: ' + devName + batteryInfo;
