@@ -318,6 +318,23 @@ pub fn open_sink_for_speaker(
     Ok((sink, default_name))
 }
 
+/// Decode a bounded HTTP capture without substituting unrelated station audio.
+fn decode_stream_window(
+    exit_code: Option<i32>,
+    bytes: Vec<u8>,
+) -> Result<Decoder<Cursor<Vec<u8>>>, String> {
+    match exit_code {
+        // A live stream may reach our time or size limit after yielding playable data.
+        Some(0 | 28 | 63) => {}
+        Some(code) => return Err(format!("stream download failed (curl exit {code})")),
+        None => return Err("stream download was interrupted".to_owned()),
+    }
+    if bytes.is_empty() {
+        return Err("stream download returned no audio data".to_owned());
+    }
+    Decoder::new(Cursor::new(bytes)).map_err(|e| format!("cannot decode stream audio: {e}"))
+}
+
 /// Play `target` (constellation station, local audio file, or HTTP stream URL)
 /// through the selected output device (`bt_speaker`) for `seconds` (`0` = until Ctrl-C).
 pub fn play_target(target: &str, bt_speaker: Option<&str>, seconds: u64) -> Result<(), String> {
@@ -352,34 +369,24 @@ pub fn play_target(target: &str, bt_speaker: Option<&str>, seconds: u64) -> Resu
         println!("{URL_STREAM_STATUS}");
         player.append(decoder);
     } else if target.starts_with("http://") || target.starts_with("https://") {
-        println!("tuned stream:    {target}");
-        println!("{URL_STREAM_STATUS}");
         // Fetch an initial stream window via curl so rodio::Decoder can play MP3/AAC/Ogg streams
         let max_time = if seconds > 0 { seconds.max(6) } else { 15 };
         let output = Command::new("curl")
             .args([
                 "-sL",
+                "--fail",
                 "--max-time",
                 &max_time.to_string(),
                 "--max-filesize",
                 "4194304",
                 target,
             ])
-            .output();
-        match output {
-            Ok(out) if !out.stdout.is_empty() => {
-                let cursor = Cursor::new(out.stdout);
-                match Decoder::new(cursor) {
-                    Ok(dec) => player.append(dec),
-                    Err(_) => {
-                        player.append(VakedStationSource::new(StationSynthKind::RadioQuantshuffle));
-                    }
-                }
-            }
-            _ => {
-                player.append(VakedStationSource::new(StationSynthKind::RadioQuantshuffle));
-            }
-        }
+            .output()
+            .map_err(|e| format!("cannot start stream download with curl: {e}"))?;
+        let decoder = decode_stream_window(output.status.code(), output.stdout)?;
+        println!("tuned stream:    {target}");
+        println!("{URL_STREAM_STATUS}");
+        player.append(decoder);
     } else {
         return Err(format!(
             "unknown station or unreadable target: {target} (try radio.vaked.dev, music.vaked.dev, nand.vaked.dev, mirror.vaked.dev, or an http(s) URL)"
@@ -426,6 +433,65 @@ pub fn play_target(target: &str, bt_speaker: Option<&str>, seconds: u64) -> Resu
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn wav_fixture() -> Vec<u8> {
+        // Mono 16-bit PCM, eight frames. Decode only: no output device is opened.
+        let samples: [i16; 8] = [0, 1000, -1000, 2000, -2000, 1000, -1000, 0];
+        let data_size = (samples.len() * 2) as u32;
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"RIFF");
+        bytes.extend_from_slice(&(36 + data_size).to_le_bytes());
+        bytes.extend_from_slice(b"WAVEfmt ");
+        bytes.extend_from_slice(&16u32.to_le_bytes());
+        bytes.extend_from_slice(&1u16.to_le_bytes()); // PCM
+        bytes.extend_from_slice(&1u16.to_le_bytes()); // mono
+        bytes.extend_from_slice(&8000u32.to_le_bytes());
+        bytes.extend_from_slice(&16000u32.to_le_bytes()); // bytes per second
+        bytes.extend_from_slice(&2u16.to_le_bytes()); // block alignment
+        bytes.extend_from_slice(&16u16.to_le_bytes());
+        bytes.extend_from_slice(b"data");
+        bytes.extend_from_slice(&data_size.to_le_bytes());
+        for sample in samples {
+            bytes.extend_from_slice(&sample.to_le_bytes());
+        }
+        bytes
+    }
+
+    #[test]
+    fn stream_capture_decodes_audio_after_success_or_capture_limit() {
+        for code in [0, 28, 63] {
+            let decoder = decode_stream_window(Some(code), wav_fixture()).expect("valid capture");
+            assert_eq!(decoder.channels().get(), 1);
+            assert_eq!(decoder.sample_rate().get(), 8000);
+            let samples: Vec<_> = decoder.collect();
+            assert_eq!(samples.len(), 8);
+            assert!(samples[1] > 0.0);
+            assert!(samples[2] < 0.0);
+        }
+    }
+
+    #[test]
+    fn stream_download_failure_is_an_error_even_with_audio_in_response() {
+        for code in [6, 7, 22, 60] {
+            let error = decode_stream_window(Some(code), wav_fixture())
+                .err()
+                .unwrap();
+            assert!(error.contains(&format!("curl exit {code}")));
+        }
+        assert!(decode_stream_window(None, wav_fixture()).is_err());
+    }
+
+    #[test]
+    fn empty_or_invalid_stream_capture_is_an_error() {
+        for code in [0, 28, 63] {
+            let error = decode_stream_window(Some(code), Vec::new()).err().unwrap();
+            assert!(error.contains("no audio data"));
+            let error = decode_stream_window(Some(code), b"<html>Unavailable</html>".to_vec())
+                .err()
+                .unwrap();
+            assert!(error.contains("cannot decode stream audio"));
+        }
+    }
 
     #[test]
     fn missing_file_is_an_error_not_a_panic() {
