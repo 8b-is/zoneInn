@@ -1,9 +1,10 @@
 //! audio — the live playback lane (`rodio 0.23` + Bluetooth sink routing).
 //!
-//! Routes the constellation's own stations (`radio.vaked.dev`, `music.vaked.dev`,
-//! `nand.vaked.dev`, `mirror.vaked.dev`), local audio files, and HTTP stream URLs
-//! directly to the selected OS / Bluetooth A2DP output device (with first-class
-//! recognition and routing for `Soundcore Select 4 GO`).
+//! Routes the constellation's own stations (`radio.vaked.dev` with the 14-track
+//! Favourite Musics crate, `music.vaked.dev`, `nand.vaked.dev`, `mirror.vaked.dev`),
+//! local audio files, and HTTP stream URLs directly to the selected OS / Bluetooth
+//! A2DP output device (with first-class recognition and routing for
+//! `Soundcore Select 4 GO`).
 
 use std::fs::File;
 use std::io::{self, Cursor, Write};
@@ -17,11 +18,12 @@ use rodio::{
     ChannelCount, Decoder, DeviceSinkBuilder, MixerDeviceSink, Player, Sample, SampleRate, Source,
 };
 
+use crate::favourites::{self, FAVOURITE_MUSICS, FavSynthStyle, FavouriteTrack};
 use crate::{bt, nand, visuals};
 
 /// Status line describing the active playback engine.
 pub const URL_STREAM_STATUS: &str =
-    "playback: live (rodio 0.23 MixerDeviceSink + Player + ternary synth/decoder)";
+    "playback: live (rodio 0.23 MixerDeviceSink + Player + Favourite Musics 320k/432Hz engine)";
 
 const SYNTH_SAMPLE_RATE: u32 = 48_000;
 const SYNTH_CHANNELS: u16 = 2;
@@ -39,8 +41,10 @@ pub fn file_readable(path: &str) -> Result<u64, String> {
 /// Which procedural station synthesizer to run for a constellation dial target.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StationSynthKind {
-    /// `radio.vaked.dev` — 1-bit Quantshuffle + Beethoven / Ode to Joy / Für Elise / Pachelbel canon.
+    /// `radio.vaked.dev` — rotates through the 14 Favourite Musics crate + Ternary Canon.
     RadioQuantshuffle,
+    /// Specific favourite track (`0..14` index into `FAVOURITE_MUSICS`) on `radio.vaked.dev`.
+    Favourite(usize),
     /// `music.vaked.dev` — 432 Hz Verdi tuning (`D#m → B → F# → C#`) + 528 Hz Star + 288 Hz Pillar.
     Music432,
     /// `nand.vaked.dev` — 5-stage cross-coupled Ultrawhale NAND ring oscillator (`{−1, 0, +1}`).
@@ -50,7 +54,7 @@ pub enum StationSynthKind {
 }
 
 impl StationSynthKind {
-    /// Match a station name or vaked.dev URL to its procedural synthesizer.
+    /// Match a station name, vaked.dev URL, or favourite track slug to its synthesizer.
     pub fn from_target(target: &str) -> Option<Self> {
         let lower = target
             .trim()
@@ -63,27 +67,40 @@ impl StationSynthKind {
             "music.vaked.dev" | "music" => Some(Self::Music432),
             "nand.vaked.dev" | "nand" => Some(Self::NandOscillator),
             "mirror.vaked.dev" | "mirror" => Some(Self::MirrorInF),
-            _ => None,
+            _ => {
+                let sub = lower
+                    .strip_prefix("radio.vaked.dev/")
+                    .or_else(|| lower.strip_prefix("zoneinn.vaked.dev/"))
+                    .unwrap_or(lower.as_str());
+                favourites::find_favourite(sub).map(|t| Self::Favourite(t.index - 1))
+            }
         }
     }
 
-    pub const fn description(self) -> &'static str {
+    pub fn description(self) -> String {
         match self {
             Self::RadioQuantshuffle => {
-                "Quantshuffle 1-bit + Ternary Canon (Beethoven / Ode to Joy / Für Elise / Pachelbel)"
+                "Favourite Musics Crate (14 tracks: Mahakala · Innerbloom · Faded · Billie · Lorn · Massano · ARTBAT · P!NK · DRA <3 · Space Floating · Oblivion) + Ternary Canon".to_string()
+            }
+            Self::Favourite(idx) => {
+                let t = &FAVOURITE_MUSICS[idx % FAVOURITE_MUSICS.len()];
+                format!(
+                    "{} {} — {} ({} · {} BPM · {} Hz)",
+                    t.emoji, t.title, t.artist, t.key_progression, t.bpm, t.tuning_hz
+                )
             }
             Self::Music432 => {
-                "432 Hz Verdi tuning (D#m → B → F# → C#) + 528 Hz Star + 288 Hz Pillar"
+                "432 Hz Verdi tuning (D#m → B → F# → C#) + 528 Hz Star + 288 Hz Pillar".to_string()
             }
             Self::NandOscillator => {
-                "5-stage cross-coupled Ultrawhale NAND Ring Oscillator ({−1, 0, +1})"
+                "5-stage cross-coupled Ultrawhale NAND Ring Oscillator ({−1, 0, +1})".to_string()
             }
-            Self::MirrorInF => "Mirror in F tintinnabuli overtones (F2 = 87.31 Hz)",
+            Self::MirrorInF => "Mirror in F tintinnabuli overtones (F2 = 87.31 Hz)".to_string(),
         }
     }
 }
 
-/// Real-time stereo `rodio::Source` for the vaked dial stations.
+/// Real-time stereo `rodio::Source` for the vaked dial stations and Favourite Musics crate.
 pub struct VakedStationSource {
     kind: StationSynthKind,
     sample_idx: u64,
@@ -107,6 +124,165 @@ impl VakedStationSource {
         }
     }
 
+    /// Synthesize one stereo frame for a `FavouriteTrack` at time `t`.
+    fn synth_favourite_track(&self, track: &FavouriteTrack, t: f64) -> (f32, f32) {
+        let tau = std::f64::consts::TAU;
+        let beat_sec = 60.0 / (track.bpm.max(60) as f64);
+        let sixteenth = beat_sec * 0.25;
+        let step16 = (t / sixteenth) as usize;
+        let s16 = step16 % 16;
+        let bar = step16 / 16;
+        let chord_idx = bar % 4;
+
+        let root_midi = track.roots_midi[chord_idx];
+        let chord_midi = track.chords_midi[chord_idx];
+        let lead_midi = track.lead_midi[s16 % track.lead_midi.len()];
+
+        let root_hz = favourites::midi_to_hz_432(root_midi);
+        let sub_hz = root_hz * 0.5;
+        let lead_hz = favourites::midi_to_hz_432(lead_midi);
+
+        // 1. Warm 4-voice 432 Hz pad
+        let mut pad_l = 0.0_f64;
+        let mut pad_r = 0.0_f64;
+        for (i, &m) in chord_midi.iter().enumerate() {
+            let f = favourites::midi_to_hz_432(m);
+            let detune = if i % 2 == 0 { 1.0008 } else { 0.9992 };
+            pad_l += 0.048 * (tau * f * t).sin();
+            pad_r += 0.048 * (tau * f * detune * t).sin();
+        }
+
+        // 2. Beat & sixteenth envelopes
+        let beat_pos = t % beat_sec;
+        let sixteenth_pos = t % sixteenth;
+        let kick_env = (-beat_pos * 11.0).exp();
+        let pluck_env = (-sixteenth_pos * 14.0).exp();
+
+        let trit = self.ring[s16 % nand::RING_STAGES];
+        let pan = 0.5 + 0.22 * (trit as f64);
+
+        let (mut left, mut right) = (pad_l, pad_r);
+
+        match track.style {
+            FavSynthStyle::Mahakala => {
+                // 108 Hz Tibetan Dungchen horn + 4x4 sub kick + Kagyu throat formant + Vajra arp
+                let dungchen = 0.075 * (tau * 108.0 * t).sin() + 0.04 * (tau * 54.0 * t).sin();
+                let bowl = 0.03 * (tau * 528.0 * t).sin() * (-beat_pos * 2.5).exp();
+                let kick = 0.24 * kick_env * (tau * sub_hz * t).sin();
+                let arp = 0.11 * pluck_env * (tau * lead_hz * t).sin()
+                    + 0.04 * pluck_env * (tau * lead_hz * 2.0 * t).sin();
+                left += dungchen + bowl + kick + arp * pan;
+                right += dungchen + bowl * 0.9 + kick + arp * (1.0 - pan);
+            }
+            FavSynthStyle::Innerbloom => {
+                // Rolling 16th-note Joshua Tree / Hordern Pavilion arp + deep sub-bass
+                let sub =
+                    0.22 * kick_env * (tau * sub_hz * t).sin() + 0.09 * (tau * root_hz * t).sin();
+                let oct = if s16 >= 8 { 2.0 } else { 1.0 };
+                let arp = 0.13 * pluck_env * (tau * lead_hz * oct * t).sin()
+                    + 0.05 * pluck_env * (tau * lead_hz * 1.498 * t).sin();
+                left += sub + arp * pan;
+                right += sub + arp * (1.0 - pan);
+            }
+            FavSynthStyle::Faded => {
+                // Quarter-note felt piano + Alan Walker supersaw chorus + 528 Hz Star + 288 Hz Pillar
+                let piano_env = (-beat_pos * 4.5).exp();
+                let beat_lead =
+                    favourites::midi_to_hz_432(track.lead_midi[(s16 / 4) % track.lead_midi.len()]);
+                let piano = 0.14 * piano_env * (tau * beat_lead * t).sin()
+                    + 0.05 * piano_env * (tau * beat_lead * 2.0 * t).sin();
+                let star = 0.03 * (tau * 528.0 * t).sin();
+                let pillar = 0.04 * (tau * 288.0 * t).sin();
+                let bass = 0.16 * piano_env * (tau * root_hz * t).sin();
+                left += piano * pan + star + pillar + bass;
+                right += piano * (1.0 - pan) + star + pillar + bass;
+            }
+            FavSynthStyle::EverythingIWanted => {
+                // Warm Rhodes sanctuary chords + syncopated bass & pluck motif
+                let syncopated = matches!(s16, 0 | 3 | 6 | 10 | 14);
+                let note_env = if syncopated {
+                    pluck_env
+                } else {
+                    pluck_env * 0.35
+                };
+                let lead = 0.12 * note_env * (tau * lead_hz * t).sin()
+                    + 0.04 * note_env * (tau * (lead_hz * 2.0) * t).sin();
+                let bass = 0.19 * kick_env * (tau * root_hz * t).sin();
+                left += lead * pan + bass;
+                right += lead * (1.0 - pan) + bass;
+            }
+            FavSynthStyle::Anvil => {
+                // Dystopian deep house sub + rising Lorn Reese tension + metallic anvil tick
+                let tension = (((bar % 4) * 16 + s16) as f64) / 64.0;
+                let reese_f = lead_hz * (1.0 + 0.04 * tension);
+                let reese =
+                    0.11 * (tau * reese_f * t).sin() + 0.08 * (tau * (reese_f * 0.501) * t).sin();
+                let anvil_tick = if s16 == 4 || s16 == 12 {
+                    0.12 * pluck_env * (tau * (root_hz * 8.0) * t).sin()
+                } else {
+                    0.0
+                };
+                let sub = 0.25 * kick_env * (tau * sub_hz * t).sin();
+                left += sub + reese * pan + anvil_tick;
+                right += sub + reese * (1.0 - pan) + anvil_tick;
+            }
+            FavSynthStyle::MassanoDrop | FavSynthStyle::ArtbatBenassi | FavSynthStyle::DrownOm => {
+                // Melodic techno 4x4 sub kick + offbeat bass + anthemic detuned arp
+                let is_offbeat = s16 % 2 == 1;
+                let kick = 0.26 * kick_env * (tau * sub_hz * t).sin();
+                let off_bass = if is_offbeat {
+                    0.16 * pluck_env * (tau * root_hz * t).sin()
+                } else {
+                    0.0
+                };
+                let arp = 0.12 * pluck_env * (tau * lead_hz * t).sin()
+                    + 0.08 * pluck_env * (tau * (lead_hz * 1.003) * t).sin();
+                left += kick + off_bass + arp * pan;
+                right += kick + off_bass + arp * (1.0 - pan);
+            }
+            FavSynthStyle::TimeAfterTime
+            | FavSynthStyle::AllMyFavoriteColors
+            | FavSynthStyle::SpaceFloating => {
+                // Gentle heartbeat lub-dub sub + warm acoustic/Rhodes pluck
+                let sub = 0.18 * kick_env * (tau * root_hz * t).sin();
+                let pluck = 0.12 * pluck_env * (tau * lead_hz * t).sin()
+                    + 0.05 * pluck_env * (tau * (lead_hz * 2.0) * t).sin();
+                left += sub + pluck * pan;
+                right += sub + pluck * (1.0 - pan);
+            }
+            FavSynthStyle::AnswerToOblivion | FavSynthStyle::SovereignFrequencies => {
+                // Progressive 432 Hz + 528 Hz Guardian Bed + sacred overtone lead
+                let guardian = 0.045 * (tau * 528.0 * t).sin();
+                let sub = 0.22 * kick_env * (tau * sub_hz * t).sin();
+                let lead = 0.12 * pluck_env * (tau * lead_hz * t).sin();
+                left += guardian + sub + lead * pan;
+                right += guardian + sub + lead * (1.0 - pan);
+            }
+            FavSynthStyle::QuantshuffleCanon => {
+                const CANON: [f64; 32] = [
+                    392.00, 392.00, 392.00, 311.13, 349.23, 349.23, 349.23,
+                    293.66, // Beethoven V
+                    329.63, 329.63, 349.23, 392.00, 392.00, 349.23, 329.63,
+                    293.66, // Ode to Joy
+                    659.25, 622.25, 659.25, 622.25, 659.25, 493.88, 587.33,
+                    523.25, // Für Elise
+                    293.66, 220.00, 246.94, 185.00, 196.00, 146.83, 196.00,
+                    220.00, // Pachelbel
+                ];
+                let c_freq = CANON[step16 % CANON.len()];
+                let lead = 0.15 * pluck_env * (tau * c_freq * t).sin();
+                let drone = 0.07 * (tau * 110.0 * t).sin();
+                left += drone + lead * pan;
+                right += drone + lead * (1.0 - pan);
+            }
+        }
+
+        (
+            (left as f32).clamp(-0.9, 0.9),
+            (right as f32).clamp(-0.9, 0.9),
+        )
+    }
+
     fn synth_stereo_frame(&mut self) -> (f32, f32) {
         let t = self.sample_idx as f64 / SYNTH_SAMPLE_RATE as f64;
         self.sample_idx = self.sample_idx.wrapping_add(1);
@@ -123,38 +299,13 @@ impl VakedStationSource {
         let tau = std::f64::consts::TAU;
         match self.kind {
             StationSynthKind::RadioQuantshuffle => {
-                const CANON: [f64; 32] = [
-                    392.00, 392.00, 392.00, 311.13, 349.23, 349.23, 349.23,
-                    293.66, // Beethoven V
-                    329.63, 329.63, 349.23, 392.00, 392.00, 349.23, 329.63,
-                    293.66, // Ode to Joy
-                    659.25, 622.25, 659.25, 622.25, 659.25, 493.88, 587.33,
-                    523.25, // Für Elise
-                    293.66, 220.00, 246.94, 185.00, 196.00, 146.83, 196.00,
-                    220.00, // Pachelbel
-                ];
-                let step_idx = (t / 0.18) as usize;
-                let note_t = t % 0.18;
-                let env = (-note_t * 6.5).exp();
-                let base_freq = CANON[step_idx % CANON.len()];
-                let trit = self.ring[step_idx % nand::RING_STAGES];
-                let kleene_trit = self.kleene[step_idx % nand::RING_STAGES];
-                let freq = if trit > 0 { base_freq } else { base_freq * 0.5 };
-
-                // Warm 110 Hz + 165 Hz drone + ternary canon lead + 5th shimmer
-                let drone_l = 0.08 * (tau * 110.0 * t).sin() + 0.05 * (tau * 165.0 * t).sin();
-                let drone_r = 0.08 * (tau * 110.2 * t).sin() + 0.05 * (tau * 164.8 * t).sin();
-                let lead =
-                    0.16 * env * (tau * freq * t).sin() + 0.05 * env * (tau * freq * 2.0 * t).sin();
-                let fifth = if kleene_trit != 0 {
-                    0.07 * env * (tau * freq * 1.498 * t).sin()
-                } else {
-                    0.0
-                };
-                let pan = 0.5 + 0.25 * (trit as f64);
-                let left = (drone_l + lead * pan + fifth * (1.0 - pan)) as f32;
-                let right = (drone_r + lead * (1.0 - pan) + fifth * pan) as f32;
-                (left.clamp(-0.9, 0.9), right.clamp(-0.9, 0.9))
+                // Rotate through all 14 Favourite Musics every 16 seconds on radio.vaked.dev
+                let fav_idx = ((t / 16.0) as usize) % FAVOURITE_MUSICS.len();
+                self.synth_favourite_track(&FAVOURITE_MUSICS[fav_idx], t)
+            }
+            StationSynthKind::Favourite(idx) => {
+                let fav = &FAVOURITE_MUSICS[idx % FAVOURITE_MUSICS.len()];
+                self.synth_favourite_track(fav, t)
             }
             StationSynthKind::Music432 => {
                 // 432 Hz Verdi tuning: D#m -> B -> F# -> C# + 528 Hz Star + 288 Hz Pillar
@@ -297,14 +448,14 @@ pub fn open_sink_for_speaker(
                 return Ok((sink, name));
             }
         }
-        return Err(format!(
-            "speaker '{query}' not found among active audio output devices ({})",
+        println!(
+            "bluetooth note:  '{query}' is currently offline/asleep (active: {}) — routing to system default output",
             if available.is_empty() {
                 "none".to_string()
             } else {
                 available.join(", ")
             }
-        ));
+        );
     }
 
     // Default device path
@@ -318,26 +469,45 @@ pub fn open_sink_for_speaker(
     Ok((sink, default_name))
 }
 
-/// Decode a bounded HTTP capture without substituting unrelated station audio.
-fn decode_stream_window(
-    exit_code: Option<i32>,
-    bytes: Vec<u8>,
-) -> Result<Decoder<Cursor<Vec<u8>>>, String> {
-    match exit_code {
-        // A live stream may reach our time or size limit after yielding playable data.
-        Some(0 | 28 | 63) => {}
-        Some(code) => return Err(format!("stream download failed (curl exit {code})")),
-        None => return Err("stream download was interrupted".to_owned()),
+/// Queue a single `FavouriteTrack` into `player` (prefers local 320 kbps MP3 / WAV
+/// master when present and `!synth_only`, otherwise falls back to 432 Hz synthesis).
+fn append_favourite_track(player: &Player, track: &FavouriteTrack, synth_only: bool) -> bool {
+    if !synth_only
+        && let Some(path) = track.resolve_local_path()
+        && let Ok(file) = File::open(&path)
+        && let Ok(Ok(decoder)) =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| Decoder::try_from(file)))
+    {
+        println!(
+            "  queued [{:02}] {} {} — {} [320k master: {}]",
+            track.index,
+            track.emoji,
+            track.title,
+            track.artist,
+            path.file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or(track.local_master_file)
+        );
+        player.append(decoder);
+        return true;
     }
-    if bytes.is_empty() {
-        return Err("stream download returned no audio data".to_owned());
-    }
-    Decoder::new(Cursor::new(bytes)).map_err(|e| format!("cannot decode stream audio: {e}"))
+    false
 }
 
-/// Play `target` (constellation station, local audio file, or HTTP stream URL)
+/// Play `target` (constellation station, favourite track, local audio file, or HTTP stream URL)
 /// through the selected output device (`bt_speaker`) for `seconds` (`0` = until Ctrl-C).
 pub fn play_target(target: &str, bt_speaker: Option<&str>, seconds: u64) -> Result<(), String> {
+    play_target_with_options(target, bt_speaker, seconds, None, false)
+}
+
+/// Play `target` with optional `--track <favourite_query>` and `--synth` flag.
+pub fn play_target_with_options(
+    target: &str,
+    bt_speaker: Option<&str>,
+    seconds: u64,
+    track_query: Option<&str>,
+    synth_only: bool,
+) -> Result<(), String> {
     if let Some(q) = bt_speaker {
         match bt::match_speaker(q) {
             Some(p) => println!("speaker profile: {} — {}", p.model, p.note),
@@ -357,10 +527,66 @@ pub fn play_target(target: &str, bt_speaker: Option<&str>, seconds: u64) -> Resu
 
     let player = Player::connect_new(sink.mixer());
 
-    if let Some(kind) = StationSynthKind::from_target(target) {
+    // If `--track <query>` was specified, resolve the favourite track first
+    let explicit_fav = match track_query {
+        Some(q) => Some(favourites::find_favourite(q).ok_or_else(|| {
+            format!(
+                "unknown favourite track '{q}' on radio.vaked.dev (run `quantternradio favourites` to list all 14 tracks)"
+            )
+        })?),
+        None => None,
+    };
+
+    if let Some(fav) = explicit_fav {
+        println!(
+            "tuned:           radio.vaked.dev/{} — {} {} ({})",
+            fav.slug, fav.emoji, fav.title, fav.artist
+        );
+        println!(
+            "harmony:         {} · {} BPM · {} Hz · {}",
+            fav.key_progression, fav.bpm, fav.tuning_hz, fav.trit_read
+        );
+        println!("{URL_STREAM_STATUS}");
+        let _ = append_favourite_track(&player, fav, synth_only);
+        player.append(VakedStationSource::new(StationSynthKind::Favourite(
+            fav.index - 1,
+        )));
+    } else if let Some(kind) = StationSynthKind::from_target(target) {
         println!("tuned:           {target} — {}", kind.description());
         println!("{URL_STREAM_STATUS}");
-        player.append(VakedStationSource::new(kind));
+        match kind {
+            StationSynthKind::RadioQuantshuffle => {
+                println!(
+                    "crate:           {} Favourite Musics loaded on radio.vaked.dev",
+                    FAVOURITE_MUSICS.len()
+                );
+                let mut masters_queued = 0usize;
+                for fav in &FAVOURITE_MUSICS {
+                    if append_favourite_track(&player, fav, synth_only) {
+                        masters_queued += 1;
+                    }
+                }
+                if masters_queued == 0 {
+                    println!(
+                        "  mode: 432 Hz Verdi + 528 Hz Star procedural rotation (all 14 tracks)"
+                    );
+                }
+                // Always append continuous procedural radio rotation so the station never ends
+                player.append(VakedStationSource::new(StationSynthKind::RadioQuantshuffle));
+            }
+            StationSynthKind::Favourite(idx) => {
+                let fav = &FAVOURITE_MUSICS[idx % FAVOURITE_MUSICS.len()];
+                println!(
+                    "harmony:         {} · {} BPM · {} Hz · {}",
+                    fav.key_progression, fav.bpm, fav.tuning_hz, fav.trit_read
+                );
+                let _ = append_favourite_track(&player, fav, synth_only);
+                player.append(VakedStationSource::new(kind));
+            }
+            _ => {
+                player.append(VakedStationSource::new(kind));
+            }
+        }
     } else if Path::new(target).is_file() {
         let file = File::open(target).map_err(|e| format!("cannot open {target}: {e}"))?;
         let decoder =
@@ -369,7 +595,6 @@ pub fn play_target(target: &str, bt_speaker: Option<&str>, seconds: u64) -> Resu
         println!("{URL_STREAM_STATUS}");
         player.append(decoder);
     } else if target.starts_with("http://") || target.starts_with("https://") {
-        // Fetch an initial stream window via curl so rodio::Decoder can play MP3/AAC/Ogg streams
         let max_time = if seconds > 0 { seconds.max(6) } else { 15 };
         let output = Command::new("curl")
             .args([
@@ -378,7 +603,7 @@ pub fn play_target(target: &str, bt_speaker: Option<&str>, seconds: u64) -> Resu
                 "--max-time",
                 &max_time.to_string(),
                 "--max-filesize",
-                "4194304",
+                "8388608",
                 target,
             ])
             .output()
@@ -389,7 +614,7 @@ pub fn play_target(target: &str, bt_speaker: Option<&str>, seconds: u64) -> Resu
         player.append(decoder);
     } else {
         return Err(format!(
-            "unknown station or unreadable target: {target} (try radio.vaked.dev, music.vaked.dev, nand.vaked.dev, mirror.vaked.dev, or an http(s) URL)"
+            "unknown station or unreadable target: {target} (try radio.vaked.dev, innerbloom, mahakala, faded, everything-i-wanted, music.vaked.dev, nand.vaked.dev, or an http(s) URL)"
         ));
     }
 
@@ -407,8 +632,19 @@ pub fn play_target(target: &str, bt_speaker: Option<&str>, seconds: u64) -> Resu
         kleene = st.kleene;
         step += 1;
 
+        let active_fav = if let Some(fav) = explicit_fav {
+            fav
+        } else if let Some(StationSynthKind::Favourite(idx)) = StationSynthKind::from_target(target)
+        {
+            &FAVOURITE_MUSICS[idx % FAVOURITE_MUSICS.len()]
+        } else {
+            &FAVOURITE_MUSICS[((elapsed / 16.0) as usize) % FAVOURITE_MUSICS.len()]
+        };
+
         print!(
-            "\r  t={elapsed:5.1}s · trits {} · nand {} · golden 0x{:016x}   ",
+            "\r  t={elapsed:5.1}s · {} {:18} · trits {} · nand {} · 0x{:016x}   ",
+            active_fav.emoji,
+            active_fav.slug,
             nand::format_glyphs(&st.frame.trits),
             nand::format_glyphs(&st.ring),
             st.frame.hash()
@@ -428,6 +664,23 @@ pub fn play_target(target: &str, bt_speaker: Option<&str>, seconds: u64) -> Resu
 
     player.stop();
     Ok(())
+}
+
+/// Decode a bounded HTTP capture without substituting unrelated station audio.
+fn decode_stream_window(
+    exit_code: Option<i32>,
+    bytes: Vec<u8>,
+) -> Result<Decoder<Cursor<Vec<u8>>>, String> {
+    match exit_code {
+        // A live stream may reach our time or size limit after yielding playable data.
+        Some(0 | 28 | 63) => {}
+        Some(code) => return Err(format!("stream download failed (curl exit {code})")),
+        None => return Err("stream download was interrupted".to_owned()),
+    }
+    if bytes.is_empty() {
+        return Err("stream download returned no audio data".to_owned());
+    }
+    Decoder::new(Cursor::new(bytes)).map_err(|e| format!("cannot decode stream audio: {e}"))
 }
 
 #[cfg(test)]
@@ -505,10 +758,22 @@ mod tests {
     }
 
     #[test]
-    fn station_synth_kind_recognizes_vaked_surfaces() {
+    fn station_synth_kind_recognizes_vaked_surfaces_and_favourites() {
         assert_eq!(
             StationSynthKind::from_target("radio.vaked.dev"),
             Some(StationSynthKind::RadioQuantshuffle)
+        );
+        assert_eq!(
+            StationSynthKind::from_target("radio.vaked.dev/innerbloom"),
+            Some(StationSynthKind::Favourite(1))
+        );
+        assert_eq!(
+            StationSynthKind::from_target("mahakala"),
+            Some(StationSynthKind::Favourite(0))
+        );
+        assert_eq!(
+            StationSynthKind::from_target("faded"),
+            Some(StationSynthKind::Favourite(2))
         );
         assert_eq!(
             StationSynthKind::from_target("https://music.vaked.dev/"),
@@ -526,18 +791,23 @@ mod tests {
     }
 
     #[test]
-    fn vaked_station_source_generates_bounded_stereo_samples() {
-        let mut src = VakedStationSource::new(StationSynthKind::RadioQuantshuffle);
-        assert_eq!(src.channels().get(), 2);
-        assert_eq!(src.sample_rate().get(), 48_000);
-        let mut non_zero = 0usize;
-        for _ in 0..960 {
-            let s = src.next().expect("infinite source");
-            assert!((-1.0..=1.0).contains(&s), "sample out of bounds: {s}");
-            if s.abs() > 1e-5 {
-                non_zero += 1;
+    fn vaked_station_source_generates_bounded_stereo_samples_across_all_favourites() {
+        for idx in 0..FAVOURITE_MUSICS.len() {
+            let mut src = VakedStationSource::new(StationSynthKind::Favourite(idx));
+            assert_eq!(src.channels().get(), 2);
+            assert_eq!(src.sample_rate().get(), 48_000);
+            let mut non_zero = 0usize;
+            for _ in 0..480 {
+                let s = src.next().expect("infinite source");
+                assert!((-1.0..=1.0).contains(&s), "sample out of bounds: {s}");
+                if s.abs() > 1e-5 {
+                    non_zero += 1;
+                }
             }
+            assert!(
+                non_zero > 50,
+                "favourite track {idx} must emit audible samples"
+            );
         }
-        assert!(non_zero > 100, "synth must emit audible samples");
     }
 }

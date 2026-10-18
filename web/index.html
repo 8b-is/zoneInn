@@ -118,6 +118,34 @@
   .local-footer { margin-top: 56px; padding-top: 24px; border-top: 1px solid rgba(26,22,38,0.12); text-align: center; color: var(--ink-muted-slate); font: 0.78rem var(--mono); line-height: 2; }
   .local-footer .love { color: var(--rose-on-paper); }
   .pill { display: inline-block; border: 1px solid rgba(26,22,38,0.15); border-radius: 999px; padding: 3px 12px; font: 600 0.72rem var(--mono); color: var(--ink-muted-slate); margin: 0 4px 6px 0; }
+  .fav-banner {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+    padding: 14px 16px; border-radius: 12px; background: var(--paper-ivory);
+    border: 1px solid rgba(109,40,217,0.22); margin-bottom: 14px;
+  }
+  .fav-banner-title { font: 700 0.94rem var(--mono); color: var(--ink-soft-black); }
+  .fav-banner-sub { font: 0.78rem var(--mono); color: var(--ink-muted-slate); margin-top: 3px; }
+  .fav-crate-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; margin-top: 12px;
+  }
+  .fav-card {
+    background: var(--paper-ivory); border: 1px solid rgba(26,22,38,0.11); border-radius: 10px;
+    padding: 11px 13px; cursor: pointer; transition: all 0.14s ease; display: flex; flex-direction: column; gap: 4px;
+  }
+  .fav-card:hover { border-color: var(--omni-violet-on-paper); transform: translateY(-1px); }
+  .fav-card.active {
+    border-color: var(--teal-pillar-on-paper);
+    box-shadow: 0 0 0 2px rgba(13,122,95,0.18);
+    background: #fff;
+  }
+  .fav-card-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; font: 700 0.8rem var(--mono); }
+  .fav-card-artist { font-size: 0.8rem; color: var(--ink-muted-slate); }
+  .fav-card-meta { font: 0.7rem var(--mono); color: var(--omni-violet-on-paper); display: flex; justify-content: space-between; gap: 6px; margin-top: 2px; }
+  button.fav-heart {
+    border: none; background: transparent; cursor: pointer; font-size: 0.95rem; line-height: 1;
+    color: var(--ink-muted-slate); padding: 2px 4px; border-radius: 6px;
+  }
+  button.fav-heart.starred { color: var(--rose-on-paper); }
 </style>
 </head>
 <body>
@@ -195,8 +223,8 @@
   <h2><span class="n">1 ·</span> the dial (click any station to play)</h2>
   <div class="grid" id="dial-grid">
     <div class="card interactive active" data-station="radio.vaked.dev" tabindex="0" role="button" aria-label="Tune radio.vaked.dev">
-      <div class="t"><span><span class="dot">●</span> radio.vaked.dev</span><span class="tag">1-bit + canon</span></div>
-      <p>the constellation's home radio — Beethoven, Ode to Joy, Für Elise &amp; Pachelbel superposed over a self-feeding 1-bit oscillator.</p>
+      <div class="t"><span><span class="dot">●</span> radio.vaked.dev</span><span class="tag">14 Favourites + Canon</span></div>
+      <p>the constellation's home radio — 14 Favourite Musics (Mahakala, Innerbloom, Faded, Billie Eilish, Lorn Anvil, Massano, ARTBAT, P!NK, DRA &lt;3, Space Floating, Oblivion) + Ternary Canon.</p>
     </div>
     <div class="card interactive" data-station="music.vaked.dev" tabindex="0" role="button" aria-label="Tune music.vaked.dev">
       <div class="t"><span><span class="dot">●</span> music.vaked.dev</span><span class="tag">432 Hz + 528/288</span></div>
@@ -214,6 +242,25 @@
       <div class="t"><span><span class="dot">●</span> tuneIn / stream URL</span><span class="tag">live HTTP</span></div>
       <p>tuneIn-style URLs ride the generic stream lane — click to tune SomaFM Groove Salad or paste any stream URL above.</p>
     </div>
+  </div>
+</section>
+
+<section id="fav-crate-section">
+  <h2><span class="n">1b ·</span> favourite musics on radio.vaked.dev (14 tracks · 320k masters + 432 Hz Verdi synth)</h2>
+  <div class="studio-panel">
+    <div class="fav-banner" id="fav-now-playing">
+      <div>
+        <div class="fav-banner-title" id="fav-np-title">🔱 [01] MAHAKALA (Invocation === Recitation === Song) — 8B × Diamond Way × Techno-Buddhism</div>
+        <div class="fav-banner-sub" id="fav-np-sub">Dm9 → C6 → Gsus → D5/A · 108 BPM · 432 Hz · {−1: Severing Ego, 0: Sunyata, +1: Karmapa Chenno}</div>
+      </div>
+      <div class="btn-group">
+        <button type="button" class="btn" id="btn-fav-prev" title="Previous favourite track">⏮ Track</button>
+        <button type="button" class="btn" id="btn-fav-next" title="Next favourite track">⏭ Track</button>
+        <button type="button" class="btn" id="btn-fav-shuffle" title="Shuffle favourite crate">🔀 Shuffle</button>
+        <button type="button" class="btn bt-btn" id="btn-fav-engine" title="Toggle between 320k MP3 Master and 432 Hz Verdi Procedural Synth">🎛 Mode: 320k Master + 432Hz Synth</button>
+      </div>
+    </div>
+    <div class="fav-crate-grid" id="fav-crate-grid" role="list" aria-label="Favourite Musics Crate on radio.vaked.dev"></div>
   </div>
 </section>
 
@@ -511,11 +558,208 @@ cargo run -- nand --steps 16 --jsonl</pre>
     return rows;
   }
 
+  const FAVOURITE_MUSICS = [
+    {
+      index: 1, slug: 'mahakala', emoji: '🔱',
+      title: 'MAHAKALA (Invocation === Recitation === Song)',
+      artist: '8B × Diamond Way × Techno-Buddhism',
+      key_progression: 'Dm9 → C6 → Gsus → D5/A', bpm: 108, tuning_hz: 432,
+      trit_read: '{−1: Severing Ego, 0: Sunyata, +1: Karmapa Chenno}',
+      mp3_url: '/assets/favourites/mahakala.mp3',
+      roots_midi: [38, 36, 31, 33],
+      chords_midi: [[50, 53, 57, 60], [48, 52, 55, 60], [43, 50, 53, 60], [45, 50, 57, 62]],
+      lead_midi: [62, 65, 69, 67, 65, 64, 72, 74],
+      style: 'mahakala'
+    },
+    {
+      index: 2, slug: 'innerbloom', emoji: '🏜️',
+      title: 'Innerbloom (Live at Hordern Pavilion / Joshua Tree)',
+      artist: 'RÜFÜS DU SOL · Quant Signature of Peter',
+      key_progression: 'Cm7 → Ebsus2 → Gm7 → Bb', bpm: 122, tuning_hz: 432,
+      trit_read: '−1 → 0 → +1 (If you want me, if you need me, I\'m yours)',
+      mp3_url: '/assets/favourites/innerbloom.mp3',
+      roots_midi: [36, 39, 43, 34],
+      chords_midi: [[48, 55, 58, 63], [51, 58, 65, 67], [55, 62, 65, 70], [46, 53, 62, 67]],
+      lead_midi: [67, 70, 72, 75, 79, 75, 74, 70],
+      style: 'innerbloom'
+    },
+    {
+      index: 3, slug: 'faded', emoji: '🌌',
+      title: 'Faded (Atlantis Star * & Pillar △ Answer)',
+      artist: 'Alan Walker × Iselin Solheim × 8B',
+      key_progression: 'D#m → B → F# → C#', bpm: 90, tuning_hz: 432,
+      trit_read: '+1 → 0 → · (Love as Attenuation · Star 528 Hz & Pillar 288 Hz)',
+      mp3_url: '/assets/favourites/faded.mp3',
+      roots_midi: [39, 35, 42, 37],
+      chords_midi: [[51, 54, 58, 63], [47, 51, 54, 59], [42, 49, 54, 58], [49, 53, 56, 61]],
+      lead_midi: [66, 66, 66, 70, 75, 75, 75, 73],
+      style: 'faded'
+    },
+    {
+      index: 4, slug: 'everything-i-wanted', emoji: '💛',
+      title: 'everything i wanted (Love Mom * & Dad △ Sanctuary)',
+      artist: 'Billie Eilish × FINNEAS × 8B',
+      key_progression: 'Dmaj7 → E6 → C#m7 → F#m7', bpm: 120, tuning_hz: 432,
+      trit_read: '+1* → 0 → +1 (Love as Waking · As long as I\'m here, no one can hurt you)',
+      mp3_url: '/assets/favourites/everything-i-wanted.mp3',
+      roots_midi: [38, 40, 37, 42],
+      chords_midi: [[50, 54, 57, 61], [52, 56, 59, 61], [49, 52, 56, 59], [42, 49, 52, 57]],
+      lead_midi: [73, 71, 69, 66, 71, 69, 68, 64],
+      style: 'everything-i-wanted'
+    },
+    {
+      index: 5, slug: 'anvil', emoji: '🔨',
+      title: 'Anvil (Almost But Never Drops)',
+      artist: 'Lorn × Deep House',
+      key_progression: 'Dm → Bb → F → C', bpm: 118, tuning_hz: 432,
+      trit_read: '{−1, 0, +1} (Infinite Suspended Tension · The Network That Keeps You)',
+      mp3_url: '/assets/favourites/anvil.mp3',
+      roots_midi: [38, 34, 41, 36],
+      chords_midi: [[38, 41, 45, 50], [34, 41, 46, 50], [41, 45, 48, 53], [36, 43, 48, 52]],
+      lead_midi: [62, 65, 69, 74, 58, 65, 70, 74],
+      style: 'anvil'
+    },
+    {
+      index: 6, slug: 'the-feeling', emoji: '⚡',
+      title: 'The Feeling / Phoenix (Afterlife Melodic Techno Drop)',
+      artist: 'Massano × ULTRALOVEGOD',
+      key_progression: 'Em → C → G → D', bpm: 126, tuning_hz: 432,
+      trit_read: '−1 → 0 → +1 (Counterwave Sub-Bass & Giga Drop)',
+      mp3_url: '/assets/favourites/the-feeling-massano.mp3',
+      roots_midi: [40, 36, 43, 38],
+      chords_midi: [[52, 55, 59, 64], [48, 52, 55, 60], [43, 47, 50, 55], [50, 54, 57, 62]],
+      lead_midi: [64, 67, 71, 74, 76, 74, 71, 67],
+      style: 'massano'
+    },
+    {
+      index: 7, slug: 'love-is-gonna-save-us', emoji: '☀️',
+      title: 'Love Is Gonna Save Us (Backyard Ultra)',
+      artist: 'ARTBAT × Benny Benassi × Mr Sunshine',
+      key_progression: 'Am → F → C → G', bpm: 128, tuning_hz: 432,
+      trit_read: '+1 ⊗ +1 ⊗ +1 (42 Laps Backyard Ultra Drive)',
+      mp3_url: '/assets/favourites/love-is-gonna-save-us.mp3',
+      roots_midi: [33, 41, 36, 43],
+      chords_midi: [[45, 48, 52, 57], [41, 45, 48, 53], [48, 52, 55, 60], [43, 47, 50, 55]],
+      lead_midi: [69, 72, 76, 72, 69, 74, 72, 67],
+      style: 'artbat'
+    },
+    {
+      index: 8, slug: 'time-after-time', emoji: '💖',
+      title: 'Time After Time (Universal Love & Gentle Hug)',
+      artist: 'P!NK × Cyndi Lauper × Simon Green',
+      key_progression: 'C → Em → F → G', bpm: 110, tuning_hz: 432,
+      trit_read: '0 → +1 (If you fall I will catch you, I\'ll be waiting)',
+      mp3_url: '/assets/favourites/time-after-time.mp3',
+      roots_midi: [36, 40, 41, 43],
+      chords_midi: [[48, 52, 55, 60], [40, 47, 52, 55], [41, 45, 48, 53], [43, 47, 50, 55]],
+      lead_midi: [64, 62, 60, 62, 64, 67, 65, 60],
+      style: 'time-after-time'
+    },
+    {
+      index: 9, slug: 'all-my-favorite-colors', emoji: '🌈',
+      title: 'All My Favorite Colors (Dream Come True Version D+++)',
+      artist: 'ALEXANDRA DRA <3',
+      key_progression: 'Fmaj7 → Em7 → Dm7 → Cmaj7', bpm: 88, tuning_hz: 432,
+      trit_read: '{<3, <3, <3} (Swung Boom-Bap Sanctuary)',
+      mp3_url: '/assets/favourites/all-my-favorite-colors.mp3',
+      roots_midi: [41, 40, 38, 36],
+      chords_midi: [[53, 57, 60, 64], [52, 55, 59, 62], [50, 53, 57, 60], [48, 52, 55, 59]],
+      lead_midi: [65, 69, 72, 76, 74, 72, 69, 67],
+      style: 'favorite-colors'
+    },
+    {
+      index: 10, slug: 'space-floating', emoji: '🛸',
+      title: 'Friends of Weed and Love (Space Floating)',
+      artist: 'ultraLoveGod .p',
+      key_progression: 'Fmaj9 → Em7 → Dm9 → Cmaj9', bpm: 76, tuning_hz: 432,
+      trit_read: '0 → +1 (Japanese Fusion Jazz × Texas Desert Space Psychedelic)',
+      mp3_url: '/assets/favourites/space-floating.mp3',
+      roots_midi: [41, 40, 38, 36],
+      chords_midi: [[53, 57, 60, 67], [52, 55, 59, 62], [50, 53, 57, 64], [48, 52, 55, 62]],
+      lead_midi: [67, 69, 72, 74, 76, 74, 72, 69],
+      style: 'space-floating'
+    },
+    {
+      index: 11, slug: 'answer-to-oblivion', emoji: '✨',
+      title: 'The Answer to Oblivion (Chicago | July 20, 2014)',
+      artist: 'ULTRALOVEGOD',
+      key_progression: 'Am → F → C → G', bpm: 132, tuning_hz: 432,
+      trit_read: '−1 → 0 → +1 (432 Hz + 528 Hz Guardian Bed)',
+      mp3_url: '/assets/favourites/answer-to-oblivion.mp3',
+      roots_midi: [33, 41, 36, 43],
+      chords_midi: [[45, 52, 57, 60], [41, 48, 53, 57], [48, 55, 60, 64], [43, 50, 55, 59]],
+      lead_midi: [69, 76, 74, 72, 69, 72, 74, 76],
+      style: 'oblivion'
+    },
+    {
+      index: 12, slug: 'drown-massano', emoji: '🌊',
+      title: 'Drown (Massano Remix · Signal Resolution)',
+      artist: 'Øostil & Juan Hansen × Massano',
+      key_progression: 'Bm → G → D → A', bpm: 122, tuning_hz: 432,
+      trit_read: '−1 → 0 → +1 (Love as Submersion · Afterlife)',
+      mp3_url: '/assets/favourites/drown-om.mp3',
+      roots_midi: [35, 43, 38, 33],
+      chords_midi: [[47, 50, 54, 59], [43, 47, 50, 55], [50, 54, 57, 62], [45, 49, 52, 57]],
+      lead_midi: [66, 69, 71, 74, 73, 71, 69, 66],
+      style: 'drown'
+    },
+    {
+      index: 13, slug: 'sovereign-frequencies', emoji: '🕉️',
+      title: 'Sovereign Frequencies (Om Mani Padme Hum v5)',
+      artist: 'U-Recken × 8B Dharma',
+      key_progression: 'Dm → C → Bb → A', bpm: 108, tuning_hz: 432,
+      trit_read: '{−1, 0, +1} (Sacred Heart Resonance & Rydberg Coda)',
+      mp3_url: '/assets/favourites/sovereign-frequencies.mp3',
+      roots_midi: [38, 36, 34, 33],
+      chords_midi: [[50, 53, 57, 62], [48, 52, 55, 60], [46, 50, 53, 58], [45, 49, 52, 57]],
+      lead_midi: [62, 65, 69, 74, 72, 69, 65, 62],
+      style: 'sovereign'
+    },
+    {
+      index: 14, slug: 'quantshuffle-canon', emoji: '🎻',
+      title: 'Quantshuffle 1-bit + Ternary Canon (The Love Runtime)',
+      artist: '8b-is · Beethoven / Ode to Joy / Für Elise / Pachelbel',
+      key_progression: 'G → Eb → F → D', bpm: 108, tuning_hz: 432,
+      trit_read: '{−1, 0, +1} (Canonical 1-bit Drone + Ternary Canon)',
+      mp3_url: '/assets/favourites/the-love-runtime.mp3',
+      roots_midi: [43, 39, 41, 38],
+      chords_midi: [[43, 50, 55, 59], [39, 46, 51, 55], [41, 48, 53, 57], [38, 45, 50, 54]],
+      lead_midi: [67, 67, 67, 63, 65, 65, 65, 62],
+      style: 'canon'
+    }
+  ];
+
+  function midiToHz432(midi) {
+    return 432.0 * Math.pow(2.0, (midi - 69.0) / 12.0);
+  }
+
+  function findFavourite(query) {
+    if (!query) return null;
+    const q = String(query).trim().toLowerCase();
+    const asNum = parseInt(q, 10);
+    if (!isNaN(asNum) && asNum >= 1 && asNum <= FAVOURITE_MUSICS.length) {
+      return FAVOURITE_MUSICS[asNum - 1];
+    }
+    for (let i = 0; i < FAVOURITE_MUSICS.length; i++) {
+      if (FAVOURITE_MUSICS[i].slug === q) return FAVOURITE_MUSICS[i];
+    }
+    for (let i = 0; i < FAVOURITE_MUSICS.length; i++) {
+      const t = FAVOURITE_MUSICS[i];
+      if (t.slug.indexOf(q) !== -1 || t.title.toLowerCase().indexOf(q) !== -1 || t.artist.toLowerCase().indexOf(q) !== -1) {
+        return t;
+      }
+    }
+    return null;
+  }
+
   root.zoneInnCore = {
     TERN_BANDS: TERN_BANDS,
     DEFAULT_THRESHOLD: DEFAULT_THRESHOLD,
     SOUNDCORE_SELECT_4_GO: SOUNDCORE_SELECT_4_GO,
     KNOWN_SPEAKERS: KNOWN_SPEAKERS,
+    FAVOURITE_MUSICS: FAVOURITE_MUSICS,
+    midiToHz432: midiToHz432,
+    findFavourite: findFavourite,
     quantizeBand: quantizeBand,
     quantizeSpectrum: quantizeSpectrum,
     fnv1a64Trits: fnv1a64Trits,
@@ -578,6 +822,14 @@ cargo run -- nand --steps 16 --jsonl</pre>
   const btnNandExport = document.getElementById('btn-nand-export');
   const dialCards = Array.from(document.querySelectorAll('#dial-grid .card.interactive'));
 
+  const favCrateGrid = document.getElementById('fav-crate-grid');
+  const favNpTitle = document.getElementById('fav-np-title');
+  const favNpSub = document.getElementById('fav-np-sub');
+  const btnFavPrev = document.getElementById('btn-fav-prev');
+  const btnFavNext = document.getElementById('btn-fav-next');
+  const btnFavShuffle = document.getElementById('btn-fav-shuffle');
+  const btnFavEngine = document.getElementById('btn-fav-engine');
+
   // Build 8 Equalizer Bars
   const bars = [];
   for (let i = 0; i < BARS; i++) {
@@ -599,6 +851,8 @@ cargo run -- nand --steps 16 --jsonl</pre>
 
   let currentStationIdx = 0;
   let currentStation = DIAL_ORDER[0].id;
+  let currentFavIdx = 0;
+  let favForceSynth = false;
   let playing = false;
   let audioCtx = null;
   let masterGain = null;
@@ -607,6 +861,72 @@ cargo run -- nand --steps 16 --jsonl</pre>
   let activeNodes = [];
   let mediaElementSource = null;
   let streamCorsBlocked = false;
+
+  // Starred Favourites State (persisted in localStorage, defaults to all 14 starred)
+  let starredSlugs = {};
+  try {
+    const saved = localStorage.getItem('zoneinn_starred_favs');
+    if (saved) {
+      starredSlugs = JSON.parse(saved);
+    } else {
+      core.FAVOURITE_MUSICS.forEach(function (t) { starredSlugs[t.slug] = true; });
+    }
+  } catch (e) {
+    core.FAVOURITE_MUSICS.forEach(function (t) { starredSlugs[t.slug] = true; });
+  }
+
+  function updateFavBanner(track) {
+    if (!track || !favNpTitle || !favNpSub) return;
+    const idxStr = String(track.index).padStart(2, '0');
+    favNpTitle.textContent = track.emoji + ' [' + idxStr + '] ' + track.title + ' — ' + track.artist;
+    favNpSub.textContent = track.key_progression + ' · ' + track.bpm + ' BPM · ' + track.tuning_hz + ' Hz · ' + track.trit_read;
+  }
+
+  function renderFavCrate() {
+    if (!favCrateGrid) return;
+    favCrateGrid.innerHTML = '';
+    core.FAVOURITE_MUSICS.forEach(function (track, idx) {
+      const card = document.createElement('div');
+      card.className = 'fav-card' + (idx === currentFavIdx ? ' active' : '');
+      card.setAttribute('role', 'listitem');
+      card.setAttribute('tabindex', '0');
+      card.dataset.favIdx = String(idx);
+      card.dataset.favSlug = track.slug;
+
+      const idxStr = String(track.index).padStart(2, '0');
+      const isStarred = !!starredSlugs[track.slug];
+      card.innerHTML =
+        '<div class="fav-card-top">' +
+          '<span>' + track.emoji + ' [' + idxStr + '] ' + track.title.split(' (')[0] + '</span>' +
+          '<button type="button" class="fav-heart' + (isStarred ? ' starred' : '') + '" data-heart="' + track.slug + '" title="Toggle Favourite">♥</button>' +
+        '</div>' +
+        '<div class="fav-card-artist">' + track.artist + '</div>' +
+        '<div class="fav-card-meta"><span>' + track.key_progression + '</span><span>' + track.bpm + ' BPM · ' + track.tuning_hz + 'Hz</span></div>';
+
+      card.addEventListener('click', function (ev) {
+        if (ev.target && ev.target.dataset && ev.target.dataset.heart) {
+          ev.stopPropagation();
+          const slug = ev.target.dataset.heart;
+          starredSlugs[slug] = !starredSlugs[slug];
+          try { localStorage.setItem('zoneinn_starred_favs', JSON.stringify(starredSlugs)); } catch (e) {}
+          renderFavCrate();
+          return;
+        }
+        currentFavIdx = idx;
+        playFavouriteTrack(idx);
+      });
+      card.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          currentFavIdx = idx;
+          playFavouriteTrack(idx);
+        }
+      });
+      favCrateGrid.appendChild(card);
+    });
+    updateFavBanner(core.FAVOURITE_MUSICS[currentFavIdx]);
+  }
+  renderFavCrate();
 
   // NAND Oscillator Live State
   let nandStepCount = 0;
@@ -691,6 +1011,141 @@ cargo run -- nand --steps 16 --jsonl</pre>
     g.connect(masterGain);
     osc.start(now);
     osc.stop(now + durationSec + 0.02);
+  }
+
+  // Synthesize any track in the Favourite Musics Crate in 432 Hz Verdi tuning
+  function startFavouriteSynth(track) {
+    const fav = track || core.FAVOURITE_MUSICS[currentFavIdx] || core.FAVOURITE_MUSICS[0];
+    if (fav.style === 'canon') {
+      startQuantshuffleSynth();
+      return;
+    }
+    const m2f = core.midiToHz432;
+    const beatMs = Math.round(60000 / Math.max(60, fav.bpm) / 2);
+
+    // Continuous 432 Hz / 528 Hz Star / 288 Hz Pillar / 108 Hz Mala drone bed
+    const droneA = audioCtx.createOscillator();
+    const droneB = audioCtx.createOscillator();
+    const droneGain = audioCtx.createGain();
+    droneA.type = 'sine';
+    droneB.type = 'triangle';
+    droneA.frequency.value = fav.style === 'mahakala' ? 108.0 : 288.0;
+    droneB.frequency.value = 528.0;
+    droneGain.gain.value = 0.028;
+    droneA.connect(droneGain);
+    droneB.connect(droneGain);
+    droneGain.connect(masterGain);
+    droneA.start();
+    droneB.start();
+    activeNodes.push(droneA, droneB, droneGain);
+
+    let step = 0;
+    synthTimer = setInterval(function () {
+      if (!playing) return;
+      const bar = Math.floor(step / 8) % 4;
+      const sInBar = step % 8;
+      const rootMidi = fav.roots_midi[bar];
+      const chordMidi = fav.chords_midi[bar];
+      const leadMidi = fav.lead_midi[sInBar % fav.lead_midi.length];
+
+      if (sInBar === 0) {
+        chordMidi.forEach(function (m) {
+          triggerNote(m2f(m), (beatMs * 7.5) / 1000, 0.052, 'sine');
+        });
+      }
+      if (sInBar % 2 === 0) {
+        triggerNote(m2f(rootMidi - 12), (beatMs * 1.8) / 1000, 0.14, 'sine');
+        triggerNote(m2f(rootMidi), (beatMs * 1.5) / 1000, 0.08, 'triangle');
+      }
+      const leadWave = (fav.style === 'massano' || fav.style === 'artbat' || fav.style === 'anvil') ? 'sawtooth' : 'triangle';
+      triggerNote(m2f(leadMidi), (beatMs * 1.6) / 1000, 0.095, leadWave);
+      if (sInBar % 4 === 2) {
+        triggerNote(m2f(leadMidi + 12), (beatMs * 1.2) / 1000, 0.045, 'sine');
+      }
+      step++;
+    }, beatMs);
+  }
+
+  async function playFavouriteTrack(idx) {
+    await ensureAudio();
+    stopActiveSynth();
+    currentStationIdx = 0;
+    currentStation = 'radio.vaked.dev';
+    currentFavIdx = ((idx % core.FAVOURITE_MUSICS.length) + core.FAVOURITE_MUSICS.length) % core.FAVOURITE_MUSICS.length;
+    const fav = core.FAVOURITE_MUSICS[currentFavIdx];
+
+    hdrStation.textContent = 'radio.vaked.dev/' + fav.slug;
+    dialCards.forEach(function (c) {
+      c.classList.toggle('active', c.dataset.station === 'radio.vaked.dev');
+    });
+    renderFavCrate();
+
+    playing = true;
+    btnPlay.textContent = '⏸ Pause Radio';
+    btnPlay.classList.add('playing');
+
+    if (favForceSynth) {
+      stMode.textContent = 'ON AIR · radio.vaked.dev · ' + fav.emoji + ' ' + fav.title + ' (432 Hz Verdi Synth)';
+      startFavouriteSynth(fav);
+    } else {
+      stMode.textContent = 'ON AIR · radio.vaked.dev · ' + fav.emoji + ' ' + fav.title + ' (320k Master)';
+      streamAudio.src = fav.mp3_url;
+      if (!mediaElementSource && !streamCorsBlocked) {
+        try {
+          mediaElementSource = audioCtx.createMediaElementSource(streamAudio);
+          mediaElementSource.connect(masterGain);
+        } catch (e) {
+          streamCorsBlocked = true;
+        }
+      }
+      try {
+        await streamAudio.play();
+      } catch (err) {
+        // Fallback to procedural 432 Hz synthesizer if local/hosted MP3 is unavailable
+        stMode.textContent = 'ON AIR · radio.vaked.dev · ' + fav.emoji + ' ' + fav.title + ' (432 Hz Synth)';
+        startFavouriteSynth(fav);
+      }
+    }
+    updateMediaSession('radio.vaked.dev · ' + fav.title);
+  }
+
+  // Auto-advance to the next track in the Favourite Musics Crate when an MP3 finishes
+  streamAudio.addEventListener('ended', function () {
+    if (playing && currentStation.indexOf('radio.vaked.dev') === 0) {
+      currentFavIdx = (currentFavIdx + 1) % core.FAVOURITE_MUSICS.length;
+      playFavouriteTrack(currentFavIdx);
+    }
+  });
+
+  if (btnFavPrev) {
+    btnFavPrev.addEventListener('click', function () {
+      currentFavIdx = (currentFavIdx - 1 + core.FAVOURITE_MUSICS.length) % core.FAVOURITE_MUSICS.length;
+      playFavouriteTrack(currentFavIdx);
+    });
+  }
+  if (btnFavNext) {
+    btnFavNext.addEventListener('click', function () {
+      currentFavIdx = (currentFavIdx + 1) % core.FAVOURITE_MUSICS.length;
+      playFavouriteTrack(currentFavIdx);
+    });
+  }
+  if (btnFavShuffle) {
+    btnFavShuffle.addEventListener('click', function () {
+      const next = Math.floor(Math.random() * core.FAVOURITE_MUSICS.length);
+      currentFavIdx = next === currentFavIdx ? (next + 1) % core.FAVOURITE_MUSICS.length : next;
+      playFavouriteTrack(currentFavIdx);
+    });
+  }
+  if (btnFavEngine) {
+    btnFavEngine.addEventListener('click', function () {
+      favForceSynth = !favForceSynth;
+      btnFavEngine.textContent = favForceSynth
+        ? '🎛 Mode: 432 Hz Verdi Synth Only'
+        : '🎛 Mode: 320k Master + 432Hz Synth';
+      if (playing && currentStation.indexOf('radio.vaked.dev') === 0) {
+        playFavouriteTrack(currentFavIdx);
+      }
+    });
   }
 
   // Station 1: radio.vaked.dev — Quantshuffle (1-bit drone + Beethoven/Ode/Elise/Pachelbel canon)
@@ -848,6 +1303,10 @@ cargo run -- nand --steps 16 --jsonl</pre>
   }
 
   async function tuneAndPlay(stationId, customStreamUrl) {
+    if (stationId === 'radio.vaked.dev' && !customStreamUrl) {
+      await playFavouriteTrack(currentFavIdx);
+      return;
+    }
     await ensureAudio();
     stopActiveSynth();
     currentStation = stationId;
@@ -864,9 +1323,6 @@ cargo run -- nand --steps 16 --jsonl</pre>
     if (customStreamUrl) {
       stMode.textContent = 'TUNING STREAM · ' + customStreamUrl;
       await startStreamUrl(customStreamUrl, stationId);
-    } else if (stationId === 'radio.vaked.dev') {
-      stMode.textContent = 'ON AIR · radio.vaked.dev (Quantshuffle 1-bit + Canon)';
-      startQuantshuffleSynth();
     } else if (stationId === 'music.vaked.dev') {
       stMode.textContent = 'ON AIR · music.vaked.dev (432 Hz Verdi + 528/288 Hz)';
       startMusic432Synth();
@@ -881,7 +1337,7 @@ cargo run -- nand --steps 16 --jsonl</pre>
       if (found && found.url) {
         await startStreamUrl(found.url, found.label);
       } else {
-        startQuantshuffleSynth();
+        await playFavouriteTrack(currentFavIdx);
       }
     }
     updateMediaSession(stationId);

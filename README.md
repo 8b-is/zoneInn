@@ -20,10 +20,12 @@ quantTernRadio · zoneInn · {−1, 0, +1}
 ## Quick start
 
 ```bash
-cargo run -- list                 # the dial
+cargo run -- list                 # the dial + 14 Favourite Musics on radio.vaked.dev
+cargo run -- favourites           # inspect the 14 Favourite Musics crate (320k masters + 432Hz synth)
 cargo run -- demo --seconds 30    # the ternary equalizer, offline, no device
-cargo run -- play <url>           # tune a stream (playback: next slice)
 cargo run -- play radio.vaked.dev --bt "Soundcore Select 4"
+cargo run -- play innerbloom --bt "Soundcore Select 4"
+cargo run -- play radio.vaked.dev --track mahakala --bt "Soundcore Select 4"
 cargo run -- voice "you are listening to radio.vaked.dev"
 cargo run -- menu                 # the interactive dial menu (↑↓, enter, q)
 cargo run -- menu --snapshot      # the menu as text — E2E, no TTY needed

@@ -1,7 +1,7 @@
 //! quantTernRadio — the zoneInn radio CLI.
 
 use clap::{Parser, Subcommand};
-use zoneinn::{agy, ascii, audio, bt, menu, nand, stations, visuals, voice, web};
+use zoneinn::{agy, ascii, audio, bt, favourites, menu, nand, stations, visuals, voice, web};
 
 #[derive(Parser)]
 #[command(
@@ -16,8 +16,11 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Cmd {
-    /// List the stations on the dial.
+    /// List the stations on the dial and the Favourite Musics crate.
     List,
+    /// List the 14 Favourite Musics on radio.vaked.dev.
+    #[command(visible_aliases = ["favs", "tracks"])]
+    Favourites,
     /// Run the offline demo — the ternary equalizer, no audio device.
     Demo {
         /// Station name for the header (default: radio.vaked.dev).
@@ -27,13 +30,19 @@ enum Cmd {
         #[arg(long, default_value_t = 0)]
         seconds: u64,
     },
-    /// Tune a station by name or a raw stream URL.
+    /// Tune a station by name, favourite track slug, or a raw stream URL.
     Play {
-        /// Station name or http(s) URL.
+        /// Station name, favourite track slug (e.g. innerbloom, mahakala), or http(s) URL.
         target: String,
         /// Bluetooth speaker to send to (name substring, e.g. "Soundcore Select 4").
         #[arg(long)]
         bt: Option<String>,
+        /// Select a specific track from the radio.vaked.dev Favourite Musics crate (1..14 or slug).
+        #[arg(long)]
+        track: Option<String>,
+        /// Force pure 432 Hz / 528 Hz procedural synthesis instead of local 320k masters.
+        #[arg(long)]
+        synth: bool,
         /// Stop after N seconds (0 = play continuously until Ctrl-C).
         #[arg(long, default_value_t = 0)]
         seconds: u64,
@@ -93,10 +102,24 @@ fn main() {
             println!("  {:24} any URL (tuneIn included)", "play <url>");
             println!();
             println!(
+                "favourite musics on radio.vaked.dev ({} tracks):",
+                favourites::FAVOURITE_MUSICS.len()
+            );
+            for t in &favourites::FAVOURITE_MUSICS {
+                println!(
+                    "  [{:02}] {} {:22} · {} — {} ({} BPM · {} Hz)",
+                    t.index, t.emoji, t.slug, t.title, t.artist, t.bpm, t.tuning_hz
+                );
+            }
+            println!();
+            println!(
                 "bluetooth backend: {:?} · Soundcore Select 4 GO first-class",
                 bt::platform()
             );
             println!("thanks Yves & Dra <3");
+        }
+        Cmd::Favourites => {
+            print!("{}", favourites::describe_crate());
         }
         Cmd::Demo { station, seconds } => {
             if let Err(e) = visuals::run_demo(&station, seconds) {
@@ -107,12 +130,22 @@ fn main() {
         Cmd::Play {
             target,
             bt,
+            track,
+            synth,
             seconds,
         } => {
-            if let Some(art) = agy::track_art("8b-is", &target) {
+            if std::env::var("ZONEINN_AGY").is_ok()
+                && let Some(art) = agy::track_art("8b-is", &target)
+            {
                 println!("{art}");
             }
-            if let Err(e) = audio::play_target(&target, bt.as_deref(), seconds) {
+            if let Err(e) = audio::play_target_with_options(
+                &target,
+                bt.as_deref(),
+                seconds,
+                track.as_deref(),
+                synth,
+            ) {
                 eprintln!("playback failed: {e}");
                 std::process::exit(1);
             }

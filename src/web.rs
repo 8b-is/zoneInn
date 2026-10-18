@@ -10,7 +10,7 @@
 use std::io::{self, Read, Write};
 use std::net::TcpListener;
 
-use crate::{ascii, bt, nand, stations, visuals};
+use crate::{ascii, bt, favourites, nand, stations, visuals};
 
 /// Embedded single-file Web Radio & Bluetooth Studio (`web/index.html`).
 pub const INDEX_HTML: &str = include_str!("../web/index.html");
@@ -37,6 +37,31 @@ fn json_escape(s: &str) -> String {
     out
 }
 
+/// Build the `/api/favourites` JSON payload listing all 14 Favourite Musics on `radio.vaked.dev`.
+pub fn favourites_json() -> String {
+    let mut items = Vec::with_capacity(favourites::FAVOURITE_MUSICS.len());
+    for t in &favourites::FAVOURITE_MUSICS {
+        items.push(format!(
+            "{{\"index\":{},\"slug\":\"{}\",\"emoji\":\"{}\",\"title\":\"{}\",\"artist\":\"{}\",\"key_progression\":\"{}\",\"bpm\":{},\"tuning_hz\":{},\"trit_read\":\"{}\",\"web_url\":\"{}\"}}",
+            t.index,
+            json_escape(t.slug),
+            json_escape(t.emoji),
+            json_escape(t.title),
+            json_escape(t.artist),
+            json_escape(t.key_progression),
+            t.bpm,
+            t.tuning_hz,
+            json_escape(t.trit_read),
+            json_escape(t.web_url),
+        ));
+    }
+    format!(
+        "{{\"station\":\"radio.vaked.dev\",\"count\":{},\"tracks\":[{}]}}",
+        favourites::FAVOURITE_MUSICS.len(),
+        items.join(",")
+    )
+}
+
 /// Build the `/api/status` JSON payload describing stations, Bluetooth backend,
 /// first-class `Soundcore Select 4 GO` speaker profile, and HF refeed target.
 pub fn status_json() -> String {
@@ -55,11 +80,12 @@ pub fn status_json() -> String {
     }
     let sc = &bt::SOUNDCORE_SELECT_4_GO;
     format!(
-        "{{\"service\":\"quantTernRadio\",\"web_url\":\"https://zoneinn.vaked.dev\",\"bluetooth_backend\":\"{:?}\",\"featured_speaker\":{{\"model\":\"{}\",\"name_match\":\"{}\",\"audio_class\":\"{}\"}},\"nand_refeed_repo\":\"PeetPedro/ultrawhale-dogfood\",\"stations\":[{}]}}",
+        "{{\"service\":\"quantTernRadio\",\"web_url\":\"https://zoneinn.vaked.dev\",\"bluetooth_backend\":\"{:?}\",\"featured_speaker\":{{\"model\":\"{}\",\"name_match\":\"{}\",\"audio_class\":\"{}\"}},\"nand_refeed_repo\":\"PeetPedro/ultrawhale-dogfood\",\"favourites_count\":{},\"stations\":[{}]}}",
         bt::platform(),
         json_escape(sc.model),
         json_escape(sc.name_match),
         json_escape(sc.audio_class),
+        favourites::FAVOURITE_MUSICS.len(),
         dial_items.join(",")
     )
 }
@@ -115,6 +141,11 @@ pub fn route_request(path: &str) -> (&'static str, &'static str, String) {
             FAVICON_SVG.to_string(),
         ),
         "/api/status" => ("200 OK", "application/json; charset=utf-8", status_json()),
+        "/api/favourites" => (
+            "200 OK",
+            "application/json; charset=utf-8",
+            favourites_json(),
+        ),
         "/api/frame" => (
             "200 OK",
             "application/json; charset=utf-8",
@@ -165,13 +196,29 @@ pub fn serve(bind: &str, max_requests: Option<usize>) -> io::Result<()> {
             .and_then(|line| line.split_whitespace().nth(1))
             .unwrap_or("/");
 
-        let (status, content_type, body) = route_request(path);
-        let response = format!(
-            "HTTP/1.1 {status}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nPermissions-Policy: bluetooth=(self), speaker-selection=(self), autoplay=(self)\r\nConnection: close\r\n\r\n{body}",
-            body.len()
-        );
-        let _ = stream.write_all(response.as_bytes());
-        let _ = stream.flush();
+        let clean = path.split('?').next().unwrap_or("/");
+        if let Some(rest) = clean.strip_prefix("/assets/favourites/")
+            && let Some(slug) = rest.strip_suffix(".mp3")
+            && let Some(fav) = favourites::find_favourite(slug)
+            && let Some(local_path) = fav.resolve_local_path()
+            && let Ok(bytes) = std::fs::read(&local_path)
+        {
+            let header = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: audio/mpeg\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n",
+                bytes.len()
+            );
+            let _ = stream.write_all(header.as_bytes());
+            let _ = stream.write_all(&bytes);
+            let _ = stream.flush();
+        } else {
+            let (status, content_type, body) = route_request(path);
+            let response = format!(
+                "HTTP/1.1 {status}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nPermissions-Policy: bluetooth=(self), speaker-selection=(self), autoplay=(self)\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            let _ = stream.write_all(response.as_bytes());
+            let _ = stream.flush();
+        }
 
         served += 1;
         if let Some(limit) = max_requests
@@ -193,6 +240,7 @@ mod tests {
         assert!(INDEX_HTML.contains("Soundcore Select 4 GO"));
         assert!(INDEX_HTML.contains("navigator.bluetooth"));
         assert!(INDEX_HTML.contains("PeetPedro/ultrawhale-dogfood"));
+        assert!(INDEX_HTML.contains("FAVOURITE_MUSICS"));
     }
 
     #[test]
@@ -202,6 +250,12 @@ mod tests {
         assert!(ct.contains("application/json"));
         assert!(body.contains("Soundcore Select 4 GO"));
         assert!(body.contains("PeetPedro/ultrawhale-dogfood"));
+        assert!(body.contains("\"favourites_count\":14"));
+
+        let (st_fav, _, body_fav) = route_request("/api/favourites");
+        assert_eq!(st_fav, "200 OK");
+        assert!(body_fav.contains("\"slug\":\"mahakala\""));
+        assert!(body_fav.contains("\"slug\":\"innerbloom\""));
 
         let (st_f, _, body_f) = route_request("/api/frame");
         assert_eq!(st_f, "200 OK");

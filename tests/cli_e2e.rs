@@ -134,3 +134,16 @@ fn nand_oscillator_renders_steps_and_jsonl_refeed() {
     assert!(lines[0].contains("\"dim\":\"nand_oscillator\""));
     assert!(lines[0].contains("\"repo\":\"PeetPedro/ultrawhale-dogfood\""));
 }
+
+#[test]
+fn favourites_crate_lists_all_14_tracks() {
+    let out = zoneinn(&["favourites"]);
+    assert!(out.status.success(), "favourites failed: {}", stdout(&out));
+    let s = stdout(&out);
+    assert!(s.contains("radio.vaked.dev · Favourite Musics Crate"));
+    assert!(s.contains("mahakala"));
+    assert!(s.contains("innerbloom"));
+    assert!(s.contains("faded"));
+    assert!(s.contains("everything-i-wanted"));
+    assert!(s.contains("anvil"));
+}

@@ -21,7 +21,7 @@ pub const VAKED_DIAL: [Station; 2] = [
         name: "radio.vaked.dev",
         stream_url: Some("https://radio.vaked.dev"),
         owner: "8b-is",
-        note: "the radio surface — Quantshuffle 1-bit + Ternary Canon ({−1, 0, +1})",
+        note: "the radio surface — 14 Favourite Musics (Mahakala · Innerbloom · Faded · Billie · Lorn · Massano · ARTBAT · P!NK · DRA <3 · Space Floating · Oblivion) + Ternary Canon ({−1, 0, +1})",
     },
     Station {
         name: "music.vaked.dev",

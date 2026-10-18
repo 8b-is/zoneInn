@@ -9,6 +9,7 @@ pub mod agy;
 pub mod ascii;
 pub mod audio;
 pub mod bt;
+pub mod favourites;
 pub mod menu;
 pub mod nand;
 pub mod stations;
