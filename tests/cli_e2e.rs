@@ -136,7 +136,7 @@ fn nand_oscillator_renders_steps_and_jsonl_refeed() {
 }
 
 #[test]
-fn favourites_crate_lists_all_14_tracks() {
+fn favourites_crate_lists_all_20_tracks() {
     let out = zoneinn(&["favourites"]);
     assert!(out.status.success(), "favourites failed: {}", stdout(&out));
     let s = stdout(&out);
@@ -146,4 +146,10 @@ fn favourites_crate_lists_all_14_tracks() {
     assert!(s.contains("faded"));
     assert!(s.contains("everything-i-wanted"));
     assert!(s.contains("anvil"));
+    assert!(s.contains("teardrop"));
+    assert!(s.contains("hunger-of-the-pine"));
+    assert!(s.contains("left-hand-free"));
+    assert!(s.contains("glue"));
+    assert!(s.contains("oblivion"));
+    assert!(s.contains("not-like-before"));
 }

@@ -37,7 +37,7 @@ fn json_escape(s: &str) -> String {
     out
 }
 
-/// Build the `/api/favourites` JSON payload listing all 14 Favourite Musics on `radio.vaked.dev`.
+/// Build the `/api/favourites` JSON payload listing all 20 Favourite Musics on `radio.vaked.dev`.
 pub fn favourites_json() -> String {
     let mut items = Vec::with_capacity(favourites::FAVOURITE_MUSICS.len());
     for t in &favourites::FAVOURITE_MUSICS {
@@ -250,12 +250,19 @@ mod tests {
         assert!(ct.contains("application/json"));
         assert!(body.contains("Soundcore Select 4 GO"));
         assert!(body.contains("PeetPedro/ultrawhale-dogfood"));
-        assert!(body.contains("\"favourites_count\":14"));
+        assert!(body.contains("\"favourites_count\":20"));
 
         let (st_fav, _, body_fav) = route_request("/api/favourites");
         assert_eq!(st_fav, "200 OK");
+        assert!(body_fav.contains("\"count\":20"));
         assert!(body_fav.contains("\"slug\":\"mahakala\""));
         assert!(body_fav.contains("\"slug\":\"innerbloom\""));
+        assert!(body_fav.contains("\"slug\":\"teardrop\""));
+        assert!(body_fav.contains("\"slug\":\"hunger-of-the-pine\""));
+        assert!(body_fav.contains("\"slug\":\"left-hand-free\""));
+        assert!(body_fav.contains("\"slug\":\"glue\""));
+        assert!(body_fav.contains("\"slug\":\"oblivion\""));
+        assert!(body_fav.contains("\"slug\":\"not-like-before\""));
 
         let (st_f, _, body_f) = route_request("/api/frame");
         assert_eq!(st_f, "200 OK");

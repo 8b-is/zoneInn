@@ -223,8 +223,8 @@
   <h2><span class="n">1 ·</span> the dial (click any station to play)</h2>
   <div class="grid" id="dial-grid">
     <div class="card interactive active" data-station="radio.vaked.dev" tabindex="0" role="button" aria-label="Tune radio.vaked.dev">
-      <div class="t"><span><span class="dot">●</span> radio.vaked.dev</span><span class="tag">14 Favourites + Canon</span></div>
-      <p>the constellation's home radio — 14 Favourite Musics (Mahakala, Innerbloom, Faded, Billie Eilish, Lorn Anvil, Massano, ARTBAT, P!NK, DRA &lt;3, Space Floating, Oblivion) + Ternary Canon.</p>
+      <div class="t"><span><span class="dot">●</span> radio.vaked.dev</span><span class="tag">20 Favourites + Canon</span></div>
+      <p>the constellation's home radio — 20 Favourite Musics (Mahakala, Innerbloom, Faded, Billie Eilish, Lorn Anvil, Massano, ARTBAT, P!NK, DRA &lt;3, Space Floating, Teardrop, Hunger of the Pine, Left Hand Free, GLUE, Oblivion, Not Like Before) + Ternary Canon.</p>
     </div>
     <div class="card interactive" data-station="music.vaked.dev" tabindex="0" role="button" aria-label="Tune music.vaked.dev">
       <div class="t"><span><span class="dot">●</span> music.vaked.dev</span><span class="tag">432 Hz + 528/288</span></div>
@@ -246,7 +246,7 @@
 </section>
 
 <section id="fav-crate-section">
-  <h2><span class="n">1b ·</span> favourite musics on radio.vaked.dev (14 tracks · 320k masters + 432 Hz Verdi synth)</h2>
+  <h2><span class="n">1b ·</span> favourite musics on radio.vaked.dev (20 tracks · family+1 &amp; #1 Muse · 320k masters + 432 Hz Verdi synth)</h2>
   <div class="studio-panel">
     <div class="fav-banner" id="fav-now-playing">
       <div>
@@ -726,6 +726,78 @@ cargo run -- nand --steps 16 --jsonl</pre>
       chords_midi: [[43, 50, 55, 59], [39, 46, 51, 55], [41, 48, 53, 57], [38, 45, 50, 54]],
       lead_midi: [67, 67, 67, 63, 65, 65, 65, 62],
       style: 'canon'
+    },
+    {
+      index: 15, slug: 'teardrop', emoji: '💧',
+      title: 'Teardrop (Family+1)',
+      artist: 'Massive Attack (feat. Elizabeth Fraser) · For Yves, Dra *, Chris /\\',
+      key_progression: 'A → G → Dmaj7 → F#m', bpm: 77, tuning_hz: 432,
+      trit_read: '−1 → 0 → +1 (Love is a verb, love is a doing word · For Yves, Dra *, Chris /\\)',
+      mp3_url: '/assets/favourites/teardrop.mp3',
+      roots_midi: [33, 43, 38, 42],
+      chords_midi: [[45, 52, 57, 61], [43, 50, 55, 59], [50, 54, 57, 61], [42, 49, 54, 57]],
+      lead_midi: [69, 76, 73, 76, 67, 74, 66, 73],
+      style: 'teardrop'
+    },
+    {
+      index: 16, slug: 'hunger-of-the-pine', emoji: '🌲',
+      title: 'Hunger of the Pine',
+      artist: 'alt-J · Family+1 (This Is All Yours)',
+      key_progression: 'Cm → Bb → Abmaj7 → Fm', bpm: 85, tuning_hz: 432,
+      trit_read: '−1 → 0 → +1 (Family+1 · Sleepless Elite Soldiers · This Is All Yours)',
+      mp3_url: '/assets/favourites/hunger-of-the-pine.mp3',
+      roots_midi: [36, 34, 44, 41],
+      chords_midi: [[48, 51, 55, 60], [46, 50, 53, 58], [44, 48, 51, 55], [41, 44, 48, 53]],
+      lead_midi: [60, 63, 67, 70, 68, 67, 63, 60],
+      style: 'hunger-of-the-pine'
+    },
+    {
+      index: 17, slug: 'left-hand-free', emoji: '💙',
+      title: 'Left Hand Free (#1 Muse)',
+      artist: 'alt-J · For Yves — My Number 1 Muse 💙',
+      key_progression: 'F#m → B7 → E → C#7', bpm: 106, tuning_hz: 432,
+      trit_read: '0 → +1 (For Yves — My Number 1 Muse 💙 · Thermal Socks & Platonic Love)',
+      mp3_url: '/assets/favourites/left-hand-free.mp3',
+      roots_midi: [42, 35, 40, 37],
+      chords_midi: [[42, 49, 54, 57], [47, 51, 54, 57], [40, 47, 52, 56], [37, 44, 49, 53]],
+      lead_midi: [66, 69, 73, 76, 73, 71, 69, 66],
+      style: 'left-hand-free'
+    },
+    {
+      index: 18, slug: 'glue', emoji: '🫂',
+      title: 'GLUE',
+      artist: 'BICEP · Family+1',
+      key_progression: 'Cm → Abmaj7 → Eb → Bb', bpm: 130, tuning_hz: 432,
+      trit_read: '{−1, 0, +1} (Family+1 · 2-Step Garage Breakbeat & Euphoria Pad That Binds the Room)',
+      mp3_url: '/assets/favourites/glue.mp3',
+      roots_midi: [36, 44, 39, 34],
+      chords_midi: [[48, 55, 58, 63], [44, 51, 55, 60], [39, 46, 51, 55], [34, 41, 46, 50]],
+      lead_midi: [72, 75, 79, 77, 75, 70, 72, 67],
+      style: 'glue'
+    },
+    {
+      index: 19, slug: 'oblivion', emoji: '🌙',
+      title: 'Oblivion',
+      artist: 'Grimes · Family+1 (Live in Chicago, July 20, 2014)',
+      key_progression: 'Eb → Cm → Ab → Bb', bpm: 156, tuning_hz: 432,
+      trit_read: '−1 → 0 → +1 (Family+1 · See You on a Dark Night · Fear Transmuted into Play)',
+      mp3_url: '/assets/favourites/oblivion.mp3',
+      roots_midi: [39, 36, 44, 34],
+      chords_midi: [[51, 55, 58, 63], [48, 51, 55, 60], [44, 48, 51, 56], [46, 50, 53, 58]],
+      lead_midi: [63, 67, 70, 75, 74, 70, 67, 63],
+      style: 'grimes-oblivion'
+    },
+    {
+      index: 20, slug: 'not-like-before', emoji: '🦉',
+      title: 'Not Like Before',
+      artist: 'The Four Owls · Family+1 (HighFocusTV)',
+      key_progression: 'Dm7 → Gm7 → Bbmaj7 → A7', bpm: 90, tuning_hz: 432,
+      trit_read: '−1 → 0 → +1 (Family+1 · Leaf Dog 90 BPM Boom-Bap & Four Brothers Watch)',
+      mp3_url: '/assets/favourites/not-like-before.mp3',
+      roots_midi: [38, 43, 34, 33],
+      chords_midi: [[50, 53, 57, 60], [43, 50, 53, 58], [46, 50, 53, 57], [45, 49, 52, 55]],
+      lead_midi: [62, 65, 69, 67, 65, 62, 60, 57],
+      style: 'not-like-before'
     }
   ];
 
@@ -862,7 +934,7 @@ cargo run -- nand --steps 16 --jsonl</pre>
   let mediaElementSource = null;
   let streamCorsBlocked = false;
 
-  // Starred Favourites State (persisted in localStorage, defaults to all 14 starred)
+  // Starred Favourites State (persisted in localStorage, defaults to all 20 starred)
   let starredSlugs = {};
   try {
     const saved = localStorage.getItem('zoneinn_starred_favs');

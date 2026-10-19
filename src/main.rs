@@ -18,7 +18,7 @@ struct Cli {
 enum Cmd {
     /// List the stations on the dial and the Favourite Musics crate.
     List,
-    /// List the 14 Favourite Musics on radio.vaked.dev.
+    /// List the 20 Favourite Musics on radio.vaked.dev.
     #[command(visible_aliases = ["favs", "tracks"])]
     Favourites,
     /// Run the offline demo — the ternary equalizer, no audio device.
@@ -37,7 +37,7 @@ enum Cmd {
         /// Bluetooth speaker to send to (name substring, e.g. "Soundcore Select 4").
         #[arg(long)]
         bt: Option<String>,
-        /// Select a specific track from the radio.vaked.dev Favourite Musics crate (1..14 or slug).
+        /// Select a specific track from the radio.vaked.dev Favourite Musics crate (1..20 or slug).
         #[arg(long)]
         track: Option<String>,
         /// Force pure 432 Hz / 528 Hz procedural synthesis instead of local 320k masters.

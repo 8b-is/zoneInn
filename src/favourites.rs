@@ -40,12 +40,24 @@ pub enum FavSynthStyle {
     SovereignFrequencies,
     /// 1-bit Quantshuffle + Beethoven V / Ode to Joy / Für Elise / Pachelbel ternary canon.
     QuantshuffleCanon,
+    /// 77 BPM Bristol trip-hop ultrasound heartbeat + harpsichord figure (`Love is a verb`).
+    Teardrop,
+    /// 85 BPM coastal brass horn sustain + English chamber pastoral pulse (`This Is All Yours`).
+    HungerOfThePine,
+    /// 106 BPM grinning garage-rock organ + river brass & cowbell groove (`#1 Muse` for Yves 💙).
+    LeftHandFree,
+    /// 130 BPM 2-step garage breakbeat + warm analog sub-floor + wordless euphoria pad.
+    BicepGlue,
+    /// 156 BPM Roland Juno-G 8-bit arpeggio bassline + weightless falsetto canopy.
+    GrimesOblivion,
+    /// 90 BPM Leaf Dog dusty boom-bap horn-and-piano chop (`Nature's Greatest Mystery`).
+    NotLikeBefore,
 }
 
 /// A track in the `radio.vaked.dev` Favourite Musics crate.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FavouriteTrack {
-    /// 1-based crate index (`1..=14`).
+    /// 1-based crate index (`1..=20`).
     pub index: usize,
     /// Short URL/CLI slug (e.g. `"innerbloom"`, `"mahakala"`, `"faded"`).
     pub slug: &'static str,
@@ -83,8 +95,8 @@ pub fn midi_to_hz_432(midi: u8) -> f64 {
     432.0 * 2.0_f64.powf((midi as f64 - 69.0) / 12.0)
 }
 
-/// The 14 canonical tracks in the `radio.vaked.dev` Favourite Musics crate.
-pub const FAVOURITE_MUSICS: [FavouriteTrack; 14] = [
+/// The 20 canonical tracks in the `radio.vaked.dev` Favourite Musics (`family+1` & `#1 Muse`) crate.
+pub const FAVOURITE_MUSICS: [FavouriteTrack; 20] = [
     FavouriteTrack {
         index: 1,
         slug: "mahakala",
@@ -393,6 +405,138 @@ pub const FAVOURITE_MUSICS: [FavouriteTrack; 14] = [
         lead_midi: [67, 67, 67, 63, 65, 65, 65, 62],
         style: FavSynthStyle::QuantshuffleCanon,
     },
+    FavouriteTrack {
+        index: 15,
+        slug: "teardrop",
+        emoji: "💧",
+        title: "Teardrop (Family+1)",
+        artist: "Massive Attack (feat. Elizabeth Fraser) · For Yves, Dra *, Chris /\\",
+        key_progression: "A → G → Dmaj7 → F#m",
+        bpm: 77,
+        tuning_hz: 432,
+        trit_read: "−1 → 0 → +1 (Love is a verb, love is a doing word · For Yves, Dra *, Chris /\\)",
+        local_master_file: "MassiveAttack_Teardrop_FamilyPlus1_Master_320k.mp3",
+        web_url: "https://zoneinn.vaked.dev/assets/favourites/teardrop.mp3",
+        roots_midi: [33, 43, 38, 42],
+        chords_midi: [
+            [45, 52, 57, 61],
+            [43, 50, 55, 59],
+            [50, 54, 57, 61],
+            [42, 49, 54, 57],
+        ],
+        lead_midi: [69, 76, 73, 76, 67, 74, 66, 73],
+        style: FavSynthStyle::Teardrop,
+    },
+    FavouriteTrack {
+        index: 16,
+        slug: "hunger-of-the-pine",
+        emoji: "🌲",
+        title: "Hunger of the Pine",
+        artist: "alt-J · Family+1 (This Is All Yours)",
+        key_progression: "Cm → Bb → Abmaj7 → Fm",
+        bpm: 85,
+        tuning_hz: 432,
+        trit_read: "−1 → 0 → +1 (Family+1 · Sleepless Elite Soldiers · This Is All Yours)",
+        local_master_file: "AltJ_HungerOfThePine_FamilyPlus1_Master_320k.mp3",
+        web_url: "https://zoneinn.vaked.dev/assets/favourites/hunger-of-the-pine.mp3",
+        roots_midi: [36, 34, 44, 41],
+        chords_midi: [
+            [48, 51, 55, 60],
+            [46, 50, 53, 58],
+            [44, 48, 51, 55],
+            [41, 44, 48, 53],
+        ],
+        lead_midi: [60, 63, 67, 70, 68, 67, 63, 60],
+        style: FavSynthStyle::HungerOfThePine,
+    },
+    FavouriteTrack {
+        index: 17,
+        slug: "left-hand-free",
+        emoji: "💙",
+        title: "Left Hand Free (#1 Muse)",
+        artist: "alt-J · For Yves — My Number 1 Muse 💙",
+        key_progression: "F#m → B7 → E → C#7",
+        bpm: 106,
+        tuning_hz: 432,
+        trit_read: "0 → +1 (For Yves — My Number 1 Muse 💙 · Thermal Socks & Platonic Love)",
+        local_master_file: "AltJ_LeftHandFree_Yves_Number1Muse_Master_320k.mp3",
+        web_url: "https://zoneinn.vaked.dev/assets/favourites/left-hand-free.mp3",
+        roots_midi: [42, 35, 40, 37],
+        chords_midi: [
+            [42, 49, 54, 57],
+            [47, 51, 54, 57],
+            [40, 47, 52, 56],
+            [37, 44, 49, 53],
+        ],
+        lead_midi: [66, 69, 73, 76, 73, 71, 69, 66],
+        style: FavSynthStyle::LeftHandFree,
+    },
+    FavouriteTrack {
+        index: 18,
+        slug: "glue",
+        emoji: "🫂",
+        title: "GLUE",
+        artist: "BICEP · Family+1",
+        key_progression: "Cm → Abmaj7 → Eb → Bb",
+        bpm: 130,
+        tuning_hz: 432,
+        trit_read: "{−1, 0, +1} (Family+1 · 2-Step Garage Breakbeat & Euphoria Pad That Binds the Room)",
+        local_master_file: "Bicep_GLUE_FamilyPlus1_Master_320k.mp3",
+        web_url: "https://zoneinn.vaked.dev/assets/favourites/glue.mp3",
+        roots_midi: [36, 44, 39, 34],
+        chords_midi: [
+            [48, 55, 58, 63],
+            [44, 51, 55, 60],
+            [39, 46, 51, 55],
+            [34, 41, 46, 50],
+        ],
+        lead_midi: [72, 75, 79, 77, 75, 70, 72, 67],
+        style: FavSynthStyle::BicepGlue,
+    },
+    FavouriteTrack {
+        index: 19,
+        slug: "oblivion",
+        emoji: "🌙",
+        title: "Oblivion",
+        artist: "Grimes · Family+1 (Live in Chicago, July 20, 2014)",
+        key_progression: "Eb → Cm → Ab → Bb",
+        bpm: 156,
+        tuning_hz: 432,
+        trit_read: "−1 → 0 → +1 (Family+1 · See You on a Dark Night · Fear Transmuted into Play)",
+        local_master_file: "Grimes_Oblivion_Chicago2014_FamilyPlus1_Master_320k.mp3",
+        web_url: "https://zoneinn.vaked.dev/assets/favourites/oblivion.mp3",
+        roots_midi: [39, 36, 44, 34],
+        chords_midi: [
+            [51, 55, 58, 63],
+            [48, 51, 55, 60],
+            [44, 48, 51, 56],
+            [46, 50, 53, 58],
+        ],
+        lead_midi: [63, 67, 70, 75, 74, 70, 67, 63],
+        style: FavSynthStyle::GrimesOblivion,
+    },
+    FavouriteTrack {
+        index: 20,
+        slug: "not-like-before",
+        emoji: "🦉",
+        title: "Not Like Before",
+        artist: "The Four Owls · Family+1 (HighFocusTV)",
+        key_progression: "Dm7 → Gm7 → Bbmaj7 → A7",
+        bpm: 90,
+        tuning_hz: 432,
+        trit_read: "−1 → 0 → +1 (Family+1 · Leaf Dog 90 BPM Boom-Bap & Four Brothers Watch)",
+        local_master_file: "TheFourOwls_NotLikeBefore_FamilyPlus1_Master_320k.mp3",
+        web_url: "https://zoneinn.vaked.dev/assets/favourites/not-like-before.mp3",
+        roots_midi: [38, 43, 34, 33],
+        chords_midi: [
+            [50, 53, 57, 60],
+            [43, 50, 53, 58],
+            [46, 50, 53, 57],
+            [45, 49, 52, 55],
+        ],
+        lead_midi: [62, 65, 69, 67, 65, 62, 60, 57],
+        style: FavSynthStyle::NotLikeBefore,
+    },
 ];
 
 impl FavouriteTrack {
@@ -436,7 +580,7 @@ impl FavouriteTrack {
     }
 }
 
-/// Look up a favourite track by 1-based index (`"1"`..`"14"`), slug, or title/artist substring.
+/// Look up a favourite track by 1-based index (`"1"`..`"20"`), slug, or title/artist substring.
 pub fn find_favourite(query: &str) -> Option<&'static FavouriteTrack> {
     let q = query.trim();
     if q.is_empty() {
@@ -462,7 +606,9 @@ pub fn find_favourite(query: &str) -> Option<&'static FavouriteTrack> {
 /// Format the complete Favourite Musics crate for terminal display.
 pub fn describe_crate() -> String {
     let mut out = String::new();
-    out.push_str("radio.vaked.dev · Favourite Musics Crate (432 Hz Verdi + {−1, 0, +1})\n");
+    out.push_str(
+        "radio.vaked.dev · Favourite Musics Crate (20 tracks · family+1 & #1 Muse · 432 Hz Verdi + {−1, 0, +1})\n",
+    );
     out.push_str("────────────────────────────────────────────────────────────────────\n");
     for t in &FAVOURITE_MUSICS {
         let source_tag = if t.resolve_local_path().is_some() {
@@ -492,7 +638,7 @@ mod tests {
 
     #[test]
     fn favourite_crate_has_unique_slugs_and_sequential_indices() {
-        assert_eq!(FAVOURITE_MUSICS.len(), 14);
+        assert_eq!(FAVOURITE_MUSICS.len(), 20);
         for (i, t) in FAVOURITE_MUSICS.iter().enumerate() {
             assert_eq!(t.index, i + 1);
             assert!(!t.slug.is_empty());
@@ -514,6 +660,22 @@ mod tests {
         );
         assert_eq!(find_favourite("Alan Walker").map(|t| t.slug), Some("faded"));
         assert_eq!(find_favourite("Lorn").map(|t| t.slug), Some("anvil"));
+        assert_eq!(find_favourite("Teardrop").map(|t| t.slug), Some("teardrop"));
+        assert_eq!(
+            find_favourite("Hunger of the Pine").map(|t| t.slug),
+            Some("hunger-of-the-pine")
+        );
+        assert_eq!(
+            find_favourite("#1 Muse").map(|t| t.slug),
+            Some("left-hand-free")
+        );
+        assert_eq!(find_favourite("BICEP").map(|t| t.slug), Some("glue"));
+        assert_eq!(find_favourite("oblivion").map(|t| t.slug), Some("oblivion"));
+        assert_eq!(find_favourite("Grimes").map(|t| t.slug), Some("oblivion"));
+        assert_eq!(
+            find_favourite("Four Owls").map(|t| t.slug),
+            Some("not-like-before")
+        );
         assert!(find_favourite("nonexistent-track-xyz").is_none());
     }
 

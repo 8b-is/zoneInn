@@ -1,6 +1,6 @@
 //! audio — the live playback lane (`rodio 0.23` + Bluetooth sink routing).
 //!
-//! Routes the constellation's own stations (`radio.vaked.dev` with the 14-track
+//! Routes the constellation's own stations (`radio.vaked.dev` with the 20-track
 //! Favourite Musics crate, `music.vaked.dev`, `nand.vaked.dev`, `mirror.vaked.dev`),
 //! local audio files, and HTTP stream URLs directly to the selected OS / Bluetooth
 //! A2DP output device (with first-class recognition and routing for
@@ -41,9 +41,9 @@ pub fn file_readable(path: &str) -> Result<u64, String> {
 /// Which procedural station synthesizer to run for a constellation dial target.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StationSynthKind {
-    /// `radio.vaked.dev` — rotates through the 14 Favourite Musics crate + Ternary Canon.
+    /// `radio.vaked.dev` — rotates through the 20 Favourite Musics crate + Ternary Canon.
     RadioQuantshuffle,
-    /// Specific favourite track (`0..14` index into `FAVOURITE_MUSICS`) on `radio.vaked.dev`.
+    /// Specific favourite track (`0..20` index into `FAVOURITE_MUSICS`) on `radio.vaked.dev`.
     Favourite(usize),
     /// `music.vaked.dev` — 432 Hz Verdi tuning (`D#m → B → F# → C#`) + 528 Hz Star + 288 Hz Pillar.
     Music432,
@@ -80,7 +80,7 @@ impl StationSynthKind {
     pub fn description(self) -> String {
         match self {
             Self::RadioQuantshuffle => {
-                "Favourite Musics Crate (14 tracks: Mahakala · Innerbloom · Faded · Billie · Lorn · Massano · ARTBAT · P!NK · DRA <3 · Space Floating · Oblivion) + Ternary Canon".to_string()
+                "Favourite Musics Crate (20 tracks: Mahakala · Innerbloom · Faded · Billie · Lorn · Massano · ARTBAT · P!NK · DRA <3 · Space Floating · Teardrop · Hunger of the Pine · Left Hand Free · GLUE · Oblivion · Not Like Before) + Ternary Canon".to_string()
             }
             Self::Favourite(idx) => {
                 let t = &FAVOURITE_MUSICS[idx % FAVOURITE_MUSICS.len()];
@@ -275,6 +275,75 @@ impl VakedStationSource {
                 left += drone + lead * pan;
                 right += drone + lead * (1.0 - pan);
             }
+            FavSynthStyle::Teardrop => {
+                // 77 BPM Bristol trip-hop ultrasound lub-dub heartbeat + harpsichord figure
+                let lub_dub =
+                    (-beat_pos * 12.0).exp() + 0.65 * (-(beat_pos - 0.22).max(0.0) * 14.0).exp();
+                let sub = 0.20 * lub_dub * (tau * sub_hz * t).sin();
+                let harpsichord = 0.12 * pluck_env * (tau * lead_hz * t).sin()
+                    + 0.06 * pluck_env * (tau * (lead_hz * 2.0) * t).sin()
+                    + 0.03 * pluck_env * (tau * (lead_hz * 3.0) * t).sin();
+                left += sub + harpsichord * pan;
+                right += sub + harpsichord * (1.0 - pan);
+            }
+            FavSynthStyle::HungerOfThePine => {
+                // 85 BPM coastal brass horn sustain + chamber pastoral pulse
+                let horn_env = 0.55 + 0.45 * (tau * 0.25 * t).sin();
+                let horn = 0.11 * horn_env * (tau * (root_hz * 1.5) * t).sin()
+                    + 0.05 * horn_env * (tau * (root_hz * 3.0) * t).sin();
+                let pulse = 0.15 * kick_env * (tau * root_hz * t).sin();
+                let chamber = 0.10 * pluck_env * (tau * lead_hz * t).sin();
+                left += pulse + horn * 0.9 + chamber * pan;
+                right += pulse + horn + chamber * (1.0 - pan);
+            }
+            FavSynthStyle::LeftHandFree => {
+                // 106 BPM grinning garage-rock Hammond organ drawbars + river brass & cowbell
+                let organ = 0.10 * pluck_env * (tau * lead_hz * t).sin()
+                    + 0.06 * pluck_env * (tau * (lead_hz * 1.498) * t).sin()
+                    + 0.05 * pluck_env * (tau * (lead_hz * 2.0) * t).sin();
+                let cowbell = if s16 % 4 == 2 {
+                    0.06 * pluck_env * ((tau * 540.0 * t).sin() + (tau * 800.0 * t).sin())
+                } else {
+                    0.0
+                };
+                let bass = 0.19 * kick_env * (tau * root_hz * t).sin();
+                left += bass + organ * pan + cowbell;
+                right += bass + organ * (1.0 - pan) + cowbell;
+            }
+            FavSynthStyle::BicepGlue => {
+                // 130 BPM 2-step garage breakbeat + warm analog sub-floor + wordless euphoria pad
+                let break_hit = matches!(s16, 0 | 3 | 6 | 10 | 12);
+                let break_env = if break_hit { kick_env } else { pluck_env * 0.3 };
+                let sub = 0.23 * break_env * (tau * sub_hz * t).sin();
+                let euphoria = 0.045 * (tau * 528.0 * t).sin();
+                let vocal_loop = 0.12 * pluck_env * (tau * lead_hz * t).sin()
+                    + 0.05 * pluck_env * (tau * (lead_hz * 1.004) * t).sin();
+                left += sub + euphoria + vocal_loop * pan;
+                right += sub + euphoria * 0.95 + vocal_loop * (1.0 - pan);
+            }
+            FavSynthStyle::GrimesOblivion => {
+                // 156 BPM Roland Juno-G 8-bit arpeggio bassline + weightless falsetto canopy
+                let juno_arp = 0.15 * pluck_env * (tau * (root_hz * 2.0) * t).sin()
+                    + 0.08 * pluck_env * (tau * root_hz * t).sin();
+                let falsetto = 0.11 * pluck_env * (tau * (lead_hz * 2.0) * t).sin();
+                let sub = 0.16 * kick_env * (tau * sub_hz * t).sin();
+                left += sub + juno_arp * pan + falsetto * (1.0 - pan);
+                right += sub + juno_arp * (1.0 - pan) + falsetto * pan;
+            }
+            FavSynthStyle::NotLikeBefore => {
+                // 90 BPM Leaf Dog dusty boom-bap drum spine + melancholic horn-and-piano chop
+                let boom_bap = if s16 == 0 || s16 == 10 {
+                    0.22 * kick_env * (tau * sub_hz * t).sin()
+                } else if s16 == 4 || s16 == 12 {
+                    0.14 * pluck_env * (tau * (root_hz * 3.0) * t).sin()
+                } else {
+                    0.08 * kick_env * (tau * root_hz * t).sin()
+                };
+                let horn_chop = 0.12 * pluck_env * (tau * lead_hz * t).sin()
+                    + 0.05 * pluck_env * (tau * (lead_hz * 1.5) * t).sin();
+                left += boom_bap + horn_chop * pan;
+                right += boom_bap + horn_chop * (1.0 - pan);
+            }
         }
 
         (
@@ -299,7 +368,7 @@ impl VakedStationSource {
         let tau = std::f64::consts::TAU;
         match self.kind {
             StationSynthKind::RadioQuantshuffle => {
-                // Rotate through all 14 Favourite Musics every 16 seconds on radio.vaked.dev
+                // Rotate through all 20 Favourite Musics every 16 seconds on radio.vaked.dev
                 let fav_idx = ((t / 16.0) as usize) % FAVOURITE_MUSICS.len();
                 self.synth_favourite_track(&FAVOURITE_MUSICS[fav_idx], t)
             }
@@ -531,7 +600,7 @@ pub fn play_target_with_options(
     let explicit_fav = match track_query {
         Some(q) => Some(favourites::find_favourite(q).ok_or_else(|| {
             format!(
-                "unknown favourite track '{q}' on radio.vaked.dev (run `quantternradio favourites` to list all 14 tracks)"
+                "unknown favourite track '{q}' on radio.vaked.dev (run `quantternradio favourites` to list all 20 tracks)"
             )
         })?),
         None => None,
@@ -568,7 +637,7 @@ pub fn play_target_with_options(
                 }
                 if masters_queued == 0 {
                     println!(
-                        "  mode: 432 Hz Verdi + 528 Hz Star procedural rotation (all 14 tracks)"
+                        "  mode: 432 Hz Verdi + 528 Hz Star procedural rotation (all 20 tracks)"
                     );
                 }
                 // Always append continuous procedural radio rotation so the station never ends
@@ -774,6 +843,30 @@ mod tests {
         assert_eq!(
             StationSynthKind::from_target("faded"),
             Some(StationSynthKind::Favourite(2))
+        );
+        assert_eq!(
+            StationSynthKind::from_target("teardrop"),
+            Some(StationSynthKind::Favourite(14))
+        );
+        assert_eq!(
+            StationSynthKind::from_target("hunger-of-the-pine"),
+            Some(StationSynthKind::Favourite(15))
+        );
+        assert_eq!(
+            StationSynthKind::from_target("left-hand-free"),
+            Some(StationSynthKind::Favourite(16))
+        );
+        assert_eq!(
+            StationSynthKind::from_target("glue"),
+            Some(StationSynthKind::Favourite(17))
+        );
+        assert_eq!(
+            StationSynthKind::from_target("oblivion"),
+            Some(StationSynthKind::Favourite(18))
+        );
+        assert_eq!(
+            StationSynthKind::from_target("not-like-before"),
+            Some(StationSynthKind::Favourite(19))
         );
         assert_eq!(
             StationSynthKind::from_target("https://music.vaked.dev/"),
