@@ -55,6 +55,17 @@ radio stations in the browser (`radio.vaked.dev` 1-bit Quantshuffle + Beethoven/
 - **Audio Output Routing (`selectAudioOutput` / `setSinkId`)** to route live Web Audio directly to paired Bluetooth A2DP speakers.
 - **AVRCP MediaSession (`navigator.mediaSession`)** for physical speaker play/pause/prev/next buttons.
 
+Speaker routing is confirmed only for the current playback path after its output
+API succeeds. Idle output configuration, unsupported APIs and rejected selections
+are reported separately; configuring an inactive media element does not confirm
+the synthesizer's output. Browser and device support still varies.
+
+Run the synthetic web regressions with `node --test tests/*.test.cjs`. These tests
+do not play audio or request device permissions; they do not replace a real
+browser and speaker check.
+
+## The 14 Favourite Musics Crate (`radio.vaked.dev` · `src/favourites.rs`)
+
 ## The 20 Favourite Musics Crate (`family+1` & `#1 Muse` · `radio.vaked.dev` · `src/favourites.rs`)
 
 `radio.vaked.dev` ships with the **20 Favourite Musics Crate (`family+1` & `#1 Muse`)** — playable directly by slug (`cargo run -- play innerbloom --bt "Soundcore Select 4"`, `cargo run -- play left-hand-free`), by `--track <slug>`, or from the interactive Web Studio crate at [zoneinn.vaked.dev](https://zoneinn.vaked.dev). Every track resolves its local/CDN 320 kbps MP3 master (`/assets/favourites/<slug>.mp3`) with automatic fallback to `zoneInn`'s 432 Hz polyphonic harmonic synthesizer (`VakedStationSource`).

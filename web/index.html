@@ -932,6 +932,8 @@ cargo run -- nand --steps 16 --jsonl</pre>
   let synthTimer = null;
   let activeNodes = [];
   let mediaElementSource = null;
+  let mediaElementConnected = false;
+  let sinkRoutingQueue = Promise.resolve();
   let streamCorsBlocked = false;
 
   // Starred Favourites State (persisted in localStorage, defaults to all 20 starred)
@@ -1166,6 +1168,7 @@ cargo run -- nand --steps 16 --jsonl</pre>
         try {
           mediaElementSource = audioCtx.createMediaElementSource(streamAudio);
           mediaElementSource.connect(masterGain);
+          mediaElementConnected = true;
         } catch (e) {
           streamCorsBlocked = true;
         }
@@ -1352,6 +1355,7 @@ cargo run -- nand --steps 16 --jsonl</pre>
       try {
         mediaElementSource = audioCtx.createMediaElementSource(streamAudio);
         mediaElementSource.connect(masterGain);
+        mediaElementConnected = true;
       } catch (e) {
         streamCorsBlocked = true;
       }
@@ -1586,20 +1590,55 @@ cargo run -- nand --steps 16 --jsonl</pre>
   }
 
   async function applyAudioSink(sinkId) {
-    try {
-      if (audioCtx && typeof audioCtx.setSinkId === 'function') {
-        await audioCtx.setSinkId(sinkId);
+    const selectedOption = Array.from(sinkSelect.options).find(function (option) {
+      return option.value === sinkId;
+    });
+    const selectedLabel = selectedOption ? selectedOption.text : sinkId || 'system default';
+    // Keep later speaker selections from being overwritten by a slow earlier one.
+    const pending = sinkRoutingQueue.then(function () {
+      return routeAudioSink(sinkId, selectedLabel);
+    });
+    sinkRoutingQueue = pending.catch(function () {});
+    return pending;
+  }
+
+  async function routeAudioSink(sinkId, selectedLabel) {
+    const outputs = [
+      { name: 'Web Audio', device: audioCtx },
+      { name: 'media playback', device: streamAudio }
+    ];
+    for (const output of outputs) {
+      if (!output.device || typeof output.device.setSinkId !== 'function') {
+        output.result = 'unsupported';
+        continue;
       }
-      if (streamAudio && typeof streamAudio.setSinkId === 'function') {
-        await streamAudio.setSinkId(sinkId);
+      try {
+        await output.device.setSinkId(sinkId);
+        output.result = 'configured';
+      } catch (err) {
+        output.result = 'rejected: ' + (err && err.message ? err.message : String(err));
       }
-      const selectedLabel = sinkSelect.options[sinkSelect.selectedIndex]
-        ? sinkSelect.options[sinkSelect.selectedIndex].text
-        : sinkId || 'system default';
+    }
+    const details = outputs.map(function (output) {
+      return output.name + ': ' + output.result;
+    }).join('; ');
+    if (!playing) {
+      stBt.textContent = 'output configuration — ' + details + '; start playback to verify routing';
+      return;
+    }
+    // A connected media source plays through the AudioContext destination.
+    // A paused media element must not confirm routing for the synthesizer.
+    const mediaPlaying = streamAudio && !streamAudio.paused;
+    const disconnectedMedia = mediaPlaying && mediaElementSource && !mediaElementConnected;
+    const activeDevice = disconnectedMedia ? null
+      : mediaPlaying && !mediaElementSource ? streamAudio : audioCtx;
+    const active = outputs.find(function (output) { return output.device === activeDevice; });
+    if (activeDevice && active && active.result === 'configured') {
       hdrSpeaker.textContent = selectedLabel;
-      stBt.textContent = 'audio routed → ' + selectedLabel;
-    } catch (err) {
-      stBt.textContent = 'sink routing note: ' + (err && err.message ? err.message : String(err));
+      stBt.textContent = 'audio routed → ' + selectedLabel + ' (' + active.name + '); ' + details;
+    } else {
+      stBt.textContent = 'audio routing not confirmed — ' + details
+        + (disconnectedMedia ? '; media output is disconnected' : '');
     }
   }
 
