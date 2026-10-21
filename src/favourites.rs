@@ -96,7 +96,7 @@ pub fn midi_to_hz_432(midi: u8) -> f64 {
 }
 
 /// The 20 canonical tracks in the `radio.vaked.dev` Favourite Musics (`family+1` & `#1 Muse`) crate.
-pub const FAVOURITE_MUSICS: [FavouriteTrack; 20] = [
+pub const FAVOURITE_MUSICS: [FavouriteTrack; 21] = [
     FavouriteTrack {
         index: 1,
         slug: "mahakala",
@@ -537,6 +537,28 @@ pub const FAVOURITE_MUSICS: [FavouriteTrack; 20] = [
         lead_midi: [62, 65, 69, 67, 65, 62, 60, 57],
         style: FavSynthStyle::NotLikeBefore,
     },
+    FavouriteTrack {
+        index: 21,
+        slug: "zenebuddhizmus",
+        emoji: "☸️",
+        title: "Zenebuddhizmus (Kottazűr, 2010)",
+        artist: "Akkezdet Phiai · Saiid (Süveg Márk) & Újonc (Závada Péter) · DDK Records",
+        key_progression: "Dm9 → Gm7 → Bbmaj7 → A7b9",
+        bpm: 92,
+        tuning_hz: 432,
+        trit_read: "−1 → 0 → +1 (A lelked a dallam [0] · A tested a ritmus [−1→+1] · Az elme a rím [+1])",
+        local_master_file: "AkkezdetPhiai_Zenebuddhizmus_Kottazur2010_Master_320k.mp3",
+        web_url: "https://zoneinn.vaked.dev/assets/favourites/zenebuddhizmus.mp3",
+        roots_midi: [38, 43, 34, 33],
+        chords_midi: [
+            [50, 53, 57, 60],
+            [43, 50, 53, 58],
+            [46, 50, 53, 57],
+            [45, 49, 52, 56],
+        ],
+        lead_midi: [62, 65, 69, 72, 69, 65, 64, 62],
+        style: FavSynthStyle::NotLikeBefore,
+    },
 ];
 
 impl FavouriteTrack {
@@ -638,7 +660,7 @@ mod tests {
 
     #[test]
     fn favourite_crate_has_unique_slugs_and_sequential_indices() {
-        assert_eq!(FAVOURITE_MUSICS.len(), 20);
+        assert_eq!(FAVOURITE_MUSICS.len(), 21);
         for (i, t) in FAVOURITE_MUSICS.iter().enumerate() {
             assert_eq!(t.index, i + 1);
             assert!(!t.slug.is_empty());
@@ -675,6 +697,14 @@ mod tests {
         assert_eq!(
             find_favourite("Four Owls").map(|t| t.slug),
             Some("not-like-before")
+        );
+        assert_eq!(
+            find_favourite("Zenebuddhizmus").map(|t| t.slug),
+            Some("zenebuddhizmus")
+        );
+        assert_eq!(
+            find_favourite("Akkezdet").map(|t| t.slug),
+            Some("zenebuddhizmus")
         );
         assert!(find_favourite("nonexistent-track-xyz").is_none());
     }

@@ -92,6 +92,7 @@ browser and speaker check.
 | 18 | `glue` | GLUE — BICEP | Cm → Abmaj7 → Eb → Bb · 130 BPM | Family+1 · 2-Step Breakbeat + 432 Hz Synth |
 | 19 | `oblivion` | Oblivion — Grimes | Eb → Cm → Ab → Bb · 156 BPM | Family+1 (Live in Chicago, July 20, 2014) · 432 Hz Synth |
 | 20 | `not-like-before` | Not Like Before — The Four Owls | Dm7 → Gm7 → Bbmaj7 → A7 · 90 BPM | Family+1 (HighFocusTV) · 432 Hz Synth |
+| 21 | `zenebuddhizmus` | Zenebuddhizmus (*Kottazűr*, 2010) — Akkezdet Phiai (Saiid & Újonc) | Dm9 → Gm7 → Bbmaj7 → A7b9 · 92 BPM | *„A lelked a dallam, a tested a ritmus, az elme a rím”* · DDK Records · 432 Hz Synth |
 
 ## Safe bluetooth
 

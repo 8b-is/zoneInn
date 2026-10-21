@@ -250,11 +250,11 @@ mod tests {
         assert!(ct.contains("application/json"));
         assert!(body.contains("Soundcore Select 4 GO"));
         assert!(body.contains("PeetPedro/ultrawhale-dogfood"));
-        assert!(body.contains("\"favourites_count\":20"));
+        assert!(body.contains("\"favourites_count\":21"));
 
         let (st_fav, _, body_fav) = route_request("/api/favourites");
         assert_eq!(st_fav, "200 OK");
-        assert!(body_fav.contains("\"count\":20"));
+        assert!(body_fav.contains("\"count\":21"));
         assert!(body_fav.contains("\"slug\":\"mahakala\""));
         assert!(body_fav.contains("\"slug\":\"innerbloom\""));
         assert!(body_fav.contains("\"slug\":\"teardrop\""));
@@ -263,6 +263,7 @@ mod tests {
         assert!(body_fav.contains("\"slug\":\"glue\""));
         assert!(body_fav.contains("\"slug\":\"oblivion\""));
         assert!(body_fav.contains("\"slug\":\"not-like-before\""));
+        assert!(body_fav.contains("\"slug\":\"zenebuddhizmus\""));
 
         let (st_f, _, body_f) = route_request("/api/frame");
         assert_eq!(st_f, "200 OK");
